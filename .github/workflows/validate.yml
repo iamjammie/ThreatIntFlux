@@ -1,0 +1,27 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Tests, page syntax, feed schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: pip install requests pytest
+      - name: Unit tests (offline, fixture-based)
+        run: python3 -m pytest tests/ -q
+      - name: Validate committed fixture feed
+        run: python3 threatintflux_validate.py tests/fixtures/feed_sample.json

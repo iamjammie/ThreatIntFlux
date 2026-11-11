@@ -1,0 +1,223 @@
+{
+  "generated_at": "2026-11-11T00:00:00+00:00",
+  "mode": "sample",
+  "sources": [],
+  "items": [
+    {
+      "id": "SYN-0001",
+      "title": "Sample C2 endpoint (documentation IP)",
+      "type": "ioc",
+      "severity": "high",
+      "tier": "trusted",
+      "source": "abuse.ch ThreatFox",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "203.0.113.1",
+      "date": "2026-11-02T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0002",
+      "title": "Sample malware lure",
+      "type": "malware",
+      "severity": "medium",
+      "tier": "unverified",
+      "source": "Analyst assessment (sample)",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-SHA-0002",
+      "date": "2026-11-03T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0003",
+      "title": "Sample RCE in edge appliance",
+      "type": "vuln",
+      "severity": "low",
+      "tier": "untrusted",
+      "source": "NVD (NIST) CVE API 2.0",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-VULN-0001",
+      "date": "2026-11-04T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1190"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0004",
+      "title": "Sample C2 endpoint (documentation IP)",
+      "type": "ioc",
+      "severity": "critical",
+      "tier": "verified",
+      "source": "abuse.ch ThreatFox",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "203.0.113.4",
+      "date": "2026-11-05T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0005",
+      "title": "Sample malware lure",
+      "type": "malware",
+      "severity": "high",
+      "tier": "trusted",
+      "source": "Analyst assessment (sample)",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-SHA-0005",
+      "date": "2026-11-06T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0006",
+      "title": "Sample RCE in edge appliance",
+      "type": "vuln",
+      "severity": "medium",
+      "tier": "unverified",
+      "source": "NVD (NIST) CVE API 2.0",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-VULN-0001",
+      "date": "2026-11-07T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1190"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0007",
+      "title": "Sample C2 endpoint (documentation IP)",
+      "type": "ioc",
+      "severity": "low",
+      "tier": "untrusted",
+      "source": "abuse.ch ThreatFox",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "203.0.113.7",
+      "date": "2026-11-08T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0008",
+      "title": "Sample malware lure",
+      "type": "malware",
+      "severity": "critical",
+      "tier": "verified",
+      "source": "Analyst assessment (sample)",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-SHA-0008",
+      "date": "2026-11-09T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0009",
+      "title": "Sample RCE in edge appliance",
+      "type": "vuln",
+      "severity": "high",
+      "tier": "trusted",
+      "source": "NVD (NIST) CVE API 2.0",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-VULN-0001",
+      "date": "2026-11-01T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1190"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0010",
+      "title": "Sample C2 endpoint (documentation IP)",
+      "type": "ioc",
+      "severity": "medium",
+      "tier": "unverified",
+      "source": "abuse.ch ThreatFox",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "203.0.113.10",
+      "date": "2026-11-02T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0011",
+      "title": "Sample malware lure",
+      "type": "malware",
+      "severity": "low",
+      "tier": "untrusted",
+      "source": "Analyst assessment (sample)",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-SHA-0011",
+      "date": "2026-11-03T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1071"
+      ],
+      "synthetic": true
+    },
+    {
+      "id": "SYN-0012",
+      "title": "Sample RCE in edge appliance",
+      "type": "vuln",
+      "severity": "critical",
+      "tier": "verified",
+      "source": "NVD (NIST) CVE API 2.0",
+      "actor": "ACTOR-A07",
+      "sector": "Government",
+      "region": "India (national)",
+      "ioc": "SYN-VULN-0001",
+      "date": "2026-11-04T06:00:00+00:00",
+      "summary": "Synthetic fixture record.",
+      "mitre": [
+        "T1190"
+      ],
+      "synthetic": true
+    }
+  ]
+}
