@@ -1,6 +1,14 @@
 # ThreatIntFlux
 
-**The Edge Before Engagement.** An offline-first threat-intelligence console with a collector that pulls from public feeds and a validator that enforces the data schema. Part of the [Hunt suite](https://iamjammie.github.io/FluxHunt/).
+**The Edge Before Engagement.** An offline-first threat-intelligence console with a collector that pulls from public feeds and a validator that enforces the data schema.
+
+<!-- suite-nav:start -->
+> **Part of the [iamjammie Hunt suite](https://iamjammie.github.io/FluxHunt/suite.html)** — open-source, offline-first security tooling and knowledge.
+>
+> 🧠 [Hunt-Sage](https://github.com/iamjammie/hunt-sage) (knowledge) · 🌊 [FluxHunt](https://github.com/iamjammie/FluxHunt) (wire) · 🖥️ [HostHunt](https://github.com/iamjammie/HostHunt) (box) · 📡 [HostVigil](https://github.com/iamjammie/HostVigil) (fleet) · 🔐 [ADHuntX](https://github.com/iamjammie/ADHuntX) (directory) · 🎯 [Sentinel Matrix](https://github.com/iamjammie/Sentinel-Matrix) (detection coverage) · 🧬 [TTP NEXUS](https://github.com/iamjammie/TTP-Nexus) (frameworks) · 🛡️ **ThreatIntFlux** (threat intel) · 🔦 [Photonwire](https://github.com/iamjammie/PhotonWire) (air gap) · 🛰️ [SPECTRA](https://github.com/iamjammie/SPECTRA---Space-Cyber-Framework) (space)
+>
+> [Suite hub](https://iamjammie.github.io/FluxHunt/suite.html) · [All projects](https://github.com/iamjammie)
+<!-- suite-nav:end -->
 
 - **Console:** `index.html`, a single file with no build step. Dark analyst UI with an intel feed, advanced search with field filters, a MITRE ATT&CK matrix, actor and vulnerability views, IOCs, leak claims, source verification, and an executive briefing you print to PDF.
 - **Collector:** `threatintflux_collector.py` writes `threatintflux_feed.json` from public sources.
