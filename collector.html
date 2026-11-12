@@ -87,6 +87,10 @@
       <label>AlienVault OTX key (required for OTX)<input type="password" id="k_otx" autocomplete="off"></label>
       <label>GitHub token (optional)<input type="password" id="k_gh" autocomplete="off"></label>
       <label>NVD key (optional)<input type="password" id="k_nvd" autocomplete="off"></label>
+      <label>MalwareBazaar Auth-Key (required for MalwareBazaar)<input type="password" id="k_mb" autocomplete="off"></label>
+    </div>
+    <div class="grid2">
+      <label>CERT-In RSS feed URL (not yet confirmed; enter the feed you verify)<input id="certin_url" placeholder="https://..." autocomplete="off"></label>
     </div>
 
     <h2 style="margin-top:18px">3. Sources</h2>
@@ -296,6 +300,44 @@ async function ransomware(ctx){
   return out;
 }
 
+async function malwarebazaar(ctx){
+  if(!ctx.k.mb) throw new Error('not run: MalwareBazaar Auth-Key not provided');
+  const body = new URLSearchParams({query:'get_recent', selector:'100'});
+  const j = await getJson(ctx,'https://mb-api.abuse.ch/api/v1/',{method:'POST', headers:{'Auth-Key':ctx.k.mb}, body});
+  if(j.query_status==='no_results') return [];
+  if(j.query_status!=='ok') throw new Error('MalwareBazaar query_status: '+j.query_status);
+  const cutoff = sinceDate(ctx.days), out=[];
+  for(const s of (j.data||[])){
+    const sha=String(s.sha256_hash||'').toLowerCase(), when=normTs(s.first_seen);
+    if(!sha || !when || new Date(when) < cutoff) continue;
+    const sig=s.signature||'', tags=s.tags||[];
+    out.push(item({id:`MALBAZ-${sha}`, title:`${sig||'unknown family'} sample: ${s.file_name||sha.slice(0,12)}`,
+      type:'malware', severity:sig?'high':'medium', tier:'trusted', source:'abuse.ch MalwareBazaar',
+      actor:sig||'Unattributed', ioc:sha, date:when,
+      summary:`File type: ${s.file_type||'unknown'}. Tags: ${tags.length?tags.join(', '):'none'}.`}));
+  }
+  return out;
+}
+
+async function certin(ctx){
+  if(!ctx.certinUrl) throw new Error('not run: CERT-In feed URL not provided');
+  const text = await getText(ctx, ctx.certinUrl);
+  const doc = new DOMParser().parseFromString(text, 'text/xml');
+  if(doc.querySelector('parsererror')) throw new Error('CERT-In feed is not valid XML');
+  const cutoff = sinceDate(ctx.days), out=[];
+  for(const el of doc.querySelectorAll('item')){
+    const title=(el.querySelector('title')?.textContent||'').trim();
+    const link=(el.querySelector('link')?.textContent||'').trim();
+    const guid=(el.querySelector('guid')?.textContent||link||title).trim();
+    const when=normTs(el.querySelector('pubDate')?.textContent||'');
+    if(!title || !when || new Date(when) < cutoff) continue;
+    const cves=title.match(/CVE-\d{4}-\d{4,}/g)||[];
+    out.push(item({id:`CERTIN-${await shortHash(guid)}`, title, type:'advisory', severity:'medium', tier:'verified',
+      source:'CERT-In (India)', ioc:cves[0]||'', date:when, summary:`Advisory link: ${link||'none'}`}));
+  }
+  return out;
+}
+
 async function ghsa(ctx){
   const headers={Accept:'application/vnd.github+json'};
   if(ctx.k.gh) headers.Authorization='Bearer '+ctx.k.gh;
@@ -323,6 +365,8 @@ const SRC = [
   {name:'abuse.ch Feodo Tracker', tier:'trusted', run:feodo},
   {name:'Ransomware leak-site aggregator', tier:'unverified', run:ransomware},
   {name:'GitHub Security Advisories', tier:'verified', run:ghsa, optKey:'gh'},
+  {name:'abuse.ch MalwareBazaar', tier:'trusted', run:malwarebazaar, needKey:'mb'},
+  {name:'CERT-In (India)', tier:'verified', run:certin},
 ];
 
 /* ---------- validation (mirrors threatintflux_validate.py; the console re-checks on import) ---------- */
@@ -368,7 +412,8 @@ function ctxFromInputs(){
   return {
     days:+$('days').value,
     proxy:$('proxy').value.trim(),
-    k:{tf:$('k_tf').value.trim(), otx:$('k_otx').value.trim(), gh:$('k_gh').value.trim(), nvd:$('k_nvd').value.trim()},
+    certinUrl:$('certin_url').value.trim(),
+    k:{tf:$('k_tf').value.trim(), otx:$('k_otx').value.trim(), gh:$('k_gh').value.trim(), nvd:$('k_nvd').value.trim(), mb:$('k_mb').value.trim()},
   };
 }
 

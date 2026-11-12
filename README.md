@@ -67,11 +67,13 @@ Collected by the collector:
 - abuse.ch Feodo Tracker botnet C2 blocklist (trusted, no key)
 - GitHub Security Advisories (verified, optional token)
 - Ransomware leak-site aggregator, ransomware.live (unverified: these are the groups' own claims)
+- abuse.ch MalwareBazaar recent samples (trusted, needs a free Auth-Key via `MALWAREBAZAAR_KEY`; the endpoint returns the latest 100 additions)
+- CERT-In advisories (verified, RSS 2.0; set `CERTIN_FEED_URL` to the feed you verify, because the public feed URL is not yet confirmed)
 - MITRE ATT&CK Enterprise technique list for the matrix (verified reference, `--mitre` only; produces no items)
 
 Listed as reference only and not ingested: the curated OSINT directories on start.me that the console's Source Verification page links to. They are link collections, not feeds.
 
-CERT-In is listed as a verified source. The collector does not yet fetch it, because the advisory feed URL needs to be confirmed first.
+CERT-In is a verified source. The collector reads an RSS feed you configure with `CERTIN_FEED_URL`. Until that is set, the source reports an error and produces no items. The public feed URL has not been confirmed.
 
 ## Browser collector (no Python)
 

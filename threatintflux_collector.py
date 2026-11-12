@@ -20,8 +20,11 @@ import hashlib
 import io
 import json
 import os
+import re
 import sys
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 
 import requests
 
@@ -325,6 +328,89 @@ def collect_ghsa(days):
     return out
 
 
+# ---------------------------------------------------------------- abuse.ch MalwareBazaar (trusted, needs Auth-Key)
+MB_SOURCE = "abuse.ch MalwareBazaar"
+
+
+def collect_malwarebazaar(days):
+    """The 100 most recent samples added to MalwareBazaar. Needs a free Auth-Key.
+
+    The endpoint returns only the latest 100 additions, so a busy period can have more
+    samples than this collector sees.
+    """
+    key = os.environ.get("MALWAREBAZAAR_KEY")
+    if not key:
+        raise RuntimeError("MALWAREBAZAAR_KEY not set (free key from abuse.ch)")
+    r = requests.post("https://mb-api.abuse.ch/api/v1/", data={"query": "get_recent", "selector": "100"},
+                      headers={"Auth-Key": key, "User-Agent": UA}, timeout=TIMEOUT)
+    r.raise_for_status()
+    body = r.json()
+    status = body.get("query_status")
+    if status == "no_results":
+        return []
+    if status != "ok":
+        raise RuntimeError(f"MalwareBazaar query_status: {status}")
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    out = []
+    for s in body.get("data") or []:
+        sha = str(s.get("sha256_hash") or "").lower()
+        when = norm_ts(s.get("first_seen"))
+        if not sha or not when or datetime.fromisoformat(when) < cutoff:
+            continue
+        sig = s.get("signature") or ""
+        tags = s.get("tags") or []
+        out.append(item(
+            id=f"MALBAZ-{sha}", title=f"{sig or 'unknown family'} sample: {s.get('file_name') or sha[:12]}",
+            type="malware", severity="high" if sig else "medium", tier="trusted", source=MB_SOURCE,
+            actor=sig or "Unattributed", ioc=sha, date=when,
+            summary=f"File type: {s.get('file_type') or 'unknown'}. Tags: {', '.join(tags) or 'none'}.",
+        ))
+    return out
+
+
+# ---------------------------------------------------------------- CERT-In advisories (verified, feed URL set explicitly)
+CERTIN_SOURCE = "CERT-In (India)"
+CVE_IN_TEXT = re.compile(r"CVE-\d{4}-\d{4,}")
+
+
+def collect_certin(days):
+    """Advisories from a CERT-In RSS 2.0 feed.
+
+    The public feed URL has not been confirmed, so it must be set explicitly with CERTIN_FEED_URL.
+    Until then this source reports an error and produces no items.
+    """
+    url = os.environ.get("CERTIN_FEED_URL")
+    if not url:
+        raise RuntimeError("CERTIN_FEED_URL not set (CERT-In feed URL not yet confirmed)")
+    r = requests.get(url, timeout=TIMEOUT, headers={"User-Agent": UA})
+    r.raise_for_status()
+    root = ET.fromstring(r.text.encode("utf-8"))
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    out = []
+    for el in root.iter("item"):
+        title = (el.findtext("title") or "").strip()
+        link = (el.findtext("link") or "").strip()
+        guid = (el.findtext("guid") or link or title).strip()
+        if not title:
+            continue
+        try:
+            when = parsedate_to_datetime(el.findtext("pubDate") or "")
+        except (TypeError, ValueError):
+            continue
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        if when < cutoff:
+            continue
+        cves = CVE_IN_TEXT.findall(title)
+        out.append(item(
+            id=f"CERTIN-{hashlib.sha1(guid.encode('utf-8')).hexdigest()[:16]}", title=title,
+            type="advisory", severity="medium", tier="verified", source=CERTIN_SOURCE,
+            ioc=cves[0] if cves else "", date=when.astimezone(timezone.utc).isoformat(timespec="seconds"),
+            summary=f"Advisory link: {link or 'none'}",
+        ))
+    return out
+
+
 # ---------------------------------------------------------------- Runner
 SOURCES = [
     ("CISA Known Exploited Vulnerabilities", collect_cisa_kev),
@@ -335,6 +421,8 @@ SOURCES = [
     (RANSOM_SOURCE, collect_ransomware_live),
     (FEODO_SOURCE, collect_feodo),
     (GHSA_SOURCE, collect_ghsa),
+    (MB_SOURCE, collect_malwarebazaar),
+    (CERTIN_SOURCE, collect_certin),
 ]
 
 

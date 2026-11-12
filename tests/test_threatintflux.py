@@ -290,6 +290,74 @@ def test_validator_cli_roundtrip(tmp_path):
         assert tv.main() == 1
 
 
+def test_malwarebazaar_requires_key_and_maps_samples(monkeypatch):
+    monkeypatch.delenv("MALWAREBAZAAR_KEY", raising=False)
+    with pytest.raises(RuntimeError):
+        tc.collect_malwarebazaar(days=7)
+    monkeypatch.setenv("MALWAREBAZAAR_KEY", "k")
+    sha = "a" * 64
+    payload = {"query_status": "ok", "data": [
+        {"sha256_hash": sha, "first_seen": "2026-11-11 06:00:00", "file_name": "x.exe",
+         "file_type": "exe", "signature": "ExampleFamily", "tags": ["loader"]},
+        {"sha256_hash": "b" * 64, "first_seen": "2019-01-01 00:00:00", "signature": None},
+    ]}
+    with mock.patch.object(tc.requests, "post", return_value=FakeResp(payload)) as post:
+        out = tc.collect_malwarebazaar(days=36500)
+    assert post.call_args.kwargs["data"] == {"query": "get_recent", "selector": "100"}
+    assert post.call_args.kwargs["headers"]["Auth-Key"] == "k"
+    assert len(out) == 2
+    assert out[0]["ioc"] == sha and out[0]["type"] == "malware" and out[0]["severity"] == "high"
+    assert out[0]["actor"] == "ExampleFamily" and out[0]["tier"] == "trusted"
+    assert out[1]["severity"] == "medium" and out[1]["actor"] == "Unattributed"
+
+
+def test_malwarebazaar_no_results_is_empty_not_error(monkeypatch):
+    monkeypatch.setenv("MALWAREBAZAAR_KEY", "k")
+    with mock.patch.object(tc.requests, "post", return_value=FakeResp({"query_status": "no_results"})):
+        assert tc.collect_malwarebazaar(days=7) == []
+    with mock.patch.object(tc.requests, "post", return_value=FakeResp({"query_status": "unknown_selector"})):
+        with pytest.raises(RuntimeError):
+            tc.collect_malwarebazaar(days=7)
+
+
+RSS = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <item><title>Critical flaw in ExampleSoft (CVE-2026-5555)</title>
+        <link>https://www.cert-in.example/adv/1</link><guid>adv-1</guid>
+        <pubDate>Tue, 11 Nov 2026 06:00:00 +0530</pubDate></item>
+  <item><title>Old advisory</title><link>https://www.cert-in.example/adv/0</link>
+        <guid>adv-0</guid><pubDate>Mon, 01 Jan 2018 00:00:00 +0000</pubDate></item>
+</channel></rss>"""
+
+
+def test_certin_requires_configured_feed(monkeypatch):
+    monkeypatch.delenv("CERTIN_FEED_URL", raising=False)
+    with pytest.raises(RuntimeError, match="not yet confirmed"):
+        tc.collect_certin(days=7)
+
+
+def test_certin_parses_rss_and_filters_window(monkeypatch):
+    monkeypatch.setenv("CERTIN_FEED_URL", "https://feed.example/rss")
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp(text=RSS)):
+        out = tc.collect_certin(days=36500)
+    assert len(out) == 2  # window set wide so both items count; the 2018 item is still parsed
+    first = out[0]
+    assert first["tier"] == "verified" and first["type"] == "advisory" and first["source"] == tc.CERTIN_SOURCE
+    assert first["ioc"] == "CVE-2026-5555"
+    assert first["date"] == "2026-11-11T00:30:00+00:00"
+    errors, _ = tv.validate(_feed(out))
+    assert errors == []
+
+
+def test_certin_window_excludes_old_items(monkeypatch):
+    monkeypatch.setenv("CERTIN_FEED_URL", "https://feed.example/rss")
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp(text=RSS)):
+        out = tc.collect_certin(days=30)
+    assert [i["id"] for i in out] == [out[0]["id"]]
+    assert out[0]["ioc"] == "CVE-2026-5555"
+    assert not any(i["date"].startswith("2018") for i in out)
+
+
 def test_mitre_techniques_block_is_checked():
     good = {"id": "T1078", "name": "Valid Accounts", "tactics": ["Initial Access"]}
     errors, _ = tv.validate(_feed([], mitre_techniques=[good]))
