@@ -73,6 +73,14 @@ Listed as reference only and not ingested: the curated OSINT directories on star
 
 CERT-In is listed as a verified source. The collector does not yet fetch it, because the advisory feed URL needs to be confirmed first.
 
+## Browser collector (no Python)
+
+`collector.html` runs the same sources in the browser: open it from the same folder as `index.html` (served over http or https). It collects, validates, and then either downloads `threatintflux_feed.json` or sends the dataset straight to the console in that browser.
+
+- Browsers block many public feeds (CORS). A blocked source shows its error. Enter a CORS proxy you control to reach those sources, and never send API keys through a proxy you do not control.
+- Keys are held in the page's memory only. They are never saved.
+- The MITRE full matrix export is Python-only (`--mitre`), because the STIX bundle is large.
+
 ## Validation
 
 Validation runs in three places:

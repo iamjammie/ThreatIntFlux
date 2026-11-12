@@ -57,3 +57,34 @@ def test_every_collector_source_is_listed_in_console():
     missing = collector_names - console_names
     assert not missing, f"collector sources missing from console SOURCES: {missing}"
 
+
+def _page_script(name):
+    html = open(os.path.join(ROOT, name), encoding="utf-8").read()
+    blocks = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", html, flags=re.S)
+    assert blocks, f"no inline <script> found in {name}"
+    return max(blocks, key=len)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_browser_collector_javascript_parses():
+    with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as f:
+        f.write(_page_script("collector.html"))
+        path = f.name
+    try:
+        res = subprocess.run(["node", "--check", path], capture_output=True, text=True)
+        assert res.returncode == 0, res.stderr
+    finally:
+        os.unlink(path)
+
+
+def test_browser_collector_source_names_match_console():
+    """The browser collector labels its items with the same names the console and validator use."""
+    html = open(os.path.join(ROOT, "index.html"), encoding="utf-8").read()
+    block = html[html.index("const SOURCES = ["):html.index("];", html.index("const SOURCES = ["))]
+    console_names = set(re.findall(r"name:'([^']+)'", block))
+    collector = open(os.path.join(ROOT, "collector.html"), encoding="utf-8").read()
+    src = collector[collector.index("const SRC = ["):collector.index("];", collector.index("const SRC = ["))]
+    page_names = set(re.findall(r"name:'([^']+)'", src))
+    assert page_names, "no sources found in collector.html"
+    assert page_names <= console_names, f"not in console: {page_names - console_names}"
+

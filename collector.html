@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ThreatIntFlux Collector</title>
+<style>
+  :root{
+    --bg:#070b14; --panel:#0e1626; --panel2:#111c30; --line:#1e2a40;
+    --txt:#e6edf7; --txt2:#a9b8d0; --muted:#8da0bf;
+    --accent:#22d3ee; --ok:#34d399; --err:#f87171; --warn:#fbbf24;
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f5f7fb; --panel:#ffffff; --panel2:#f0f3f9; --line:#d9e0ec;
+      --txt:#0f172a; --txt2:#334155; --muted:#64748b;
+      --accent:#0e7490; --ok:#047857; --err:#b91c1c; --warn:#b45309;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#070b14; --panel:#0e1626; --panel2:#111c30; --line:#1e2a40;
+    --txt:#e6edf7; --txt2:#a9b8d0; --muted:#8da0bf;
+    --accent:#22d3ee; --ok:#34d399; --err:#f87171; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+  .brand{font-weight:700;font-size:18px;letter-spacing:.2px}
+  .brand span{color:var(--accent)}
+  .brand small{font-weight:500;color:var(--muted);font-size:13px;margin-left:8px}
+  a{color:var(--accent)}
+  main{max-width:1100px;margin:0 auto;padding:20px;display:grid;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  h2{font-size:15px;margin:0 0 12px}
+  .warn{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;padding:12px 14px;color:var(--txt2);font-size:13px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:6px}
+  label{display:grid;gap:6px;color:var(--txt2);font-size:13px}
+  input,select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit;width:100%}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  .chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--txt2)}
+  .s-ok{color:var(--ok)} .s-err{color:var(--err)} .s-run{color:var(--accent)} .s-idle{color:var(--muted)}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  button{background:var(--accent);color:#04212a;border:0;border-radius:8px;padding:10px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  button.alt{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .note{color:var(--muted);font-size:13px;margin-top:10px}
+  .bad{color:var(--err);font-size:13px;margin-top:8px;word-break:break-word}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;max-height:260px;overflow:auto;margin:0;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--txt2);white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">ThreatInt<span>Flux</span><small>Browser collector</small></div>
+  <a href="index.html">Open the console &rarr;</a>
+</header>
+
+<main>
+  <div class="warn">
+    Runs entirely in this browser: nothing is sent to any server except the public feeds themselves.
+    API keys are held in this page's memory only and are never saved. Many public feeds block requests from
+    a web page (CORS); a source that is blocked shows an error rather than data. For those, enter a CORS proxy
+    you control, or use the Python collector. Do not send API keys through a proxy you do not control.
+  </div>
+
+  <section class="panel">
+    <h2>1. Options</h2>
+    <div class="grid2">
+      <label>Window
+        <select id="days">
+          <option value="1">Last 1 day</option>
+          <option value="7" selected>Last 7 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
+      </label>
+      <label>CORS proxy prefix (optional)
+        <input id="proxy" placeholder="https://your-proxy.example/?url=" autocomplete="off">
+      </label>
+    </div>
+
+    <h2 style="margin-top:18px">2. Keys (optional, memory only)</h2>
+    <div class="grid3">
+      <label>ThreatFox Auth-Key (required for ThreatFox)<input type="password" id="k_tf" autocomplete="off"></label>
+      <label>AlienVault OTX key (required for OTX)<input type="password" id="k_otx" autocomplete="off"></label>
+      <label>GitHub token (optional)<input type="password" id="k_gh" autocomplete="off"></label>
+      <label>NVD key (optional)<input type="password" id="k_nvd" autocomplete="off"></label>
+    </div>
+
+    <h2 style="margin-top:18px">3. Sources</h2>
+    <table>
+      <thead><tr><th>Source</th><th>Tier</th><th>Status</th><th>Items</th><th>Detail</th></tr></thead>
+      <tbody id="srcBody"></tbody>
+    </table>
+
+    <div class="actions">
+      <button id="run">Run collection</button>
+      <button id="dl" class="alt" disabled>Download feed JSON</button>
+      <button id="send" class="alt" disabled>Send to console</button>
+    </div>
+    <div class="note" id="summary">Not run yet.</div>
+    <div id="problems"></div>
+  </section>
+
+  <section class="panel">
+    <h2>Log</h2>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script>
+/* ==================================================================
+   ThreatIntFlux browser collector.
+   Mirrors threatintflux_collector.py for the sources a browser can reach.
+   MITRE ATT&CK export is Python-only (the STIX bundle is large).
+   ================================================================== */
+const STORE_KEY = 'threatintflux.dataset.v3';   // same key the console uses
+const TYPES = ['vuln','ioc','malware','actor','leak','campaign','advisory'];
+const SEVS = ['critical','high','medium','low'];
+const TIERS = ['verified','trusted','unverified','untrusted'];
+const SEV_MAP = {critical:'critical', high:'high', medium:'medium', low:'low'};
+
+const $ = id => document.getElementById(id);
+let RESULTS = null;   // {feed, errors}
+
+/* ---------- helpers ---------- */
+function log(msg){ const el=$('log'); el.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`; el.scrollTop = el.scrollHeight; }
+function nowIso(){ return new Date().toISOString().slice(0,19)+'+00:00'; }
+
+// Normalise the timestamp shapes these feeds use to ISO-8601 with a UTC offset.
+function normTs(v){
+  if(!v) return null;
+  let s = String(v).trim().replace(/ UTC$/,'');
+  if(/^\d{4}-\d{2}-\d{2} \d/.test(s)) s = s.replace(' ','T');
+  s = s.replace(/(T\d{2}:\d{2}:\d{2})\.\d+/,'$1');            // drop sub-second digits
+  if(/T\d{2}:\d{2}(:\d{2})?$/.test(s)) s += 'Z';                 // naive -> UTC
+  const d = new Date(s);
+  return isNaN(d) ? null : d.toISOString().slice(0,19)+'+00:00';
+}
+function sinceDate(days){ return new Date(Date.now() - days*864e5); }
+function item(o){
+  return Object.assign({id:'', title:'', type:'vuln', severity:'medium', tier:'trusted', source:'',
+    actor:'Unattributed', sector:'Unspecified', region:'Global', ioc:'', date:nowIso(), summary:'',
+    mitre:[], synthetic:false}, o);
+}
+// Small, stable hash for ransomware ids. Uses SHA-1 (as the Python collector does) when available.
+async function shortHash(str){
+  if(window.crypto && crypto.subtle){
+    const b = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(str));
+    return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,16);
+  }
+  let h = 0x811c9dc5; for(const c of str){ h ^= c.charCodeAt(0); h = Math.imul(h,0x01000193)>>>0; }
+  return h.toString(16).padStart(8,'0');
+}
+function parseCsvLine(line){
+  const out=[]; let cur='', q=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(q){ if(c==='"'){ if(line[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ out.push(cur); cur=''; }
+    else cur+=c;
+  }
+  out.push(cur); return out;
+}
+
+/* ---------- fetching (CORS-aware) ---------- */
+function urlFor(ctx, url){ return ctx.proxy ? ctx.proxy + encodeURIComponent(url) : url; }
+async function http(ctx, url, opts={}){
+  let r;
+  try{ r = await fetch(urlFor(ctx,url), opts); }
+  catch(e){ throw new Error('blocked by the browser (CORS) or offline. Try a CORS proxy, or use the Python collector.'); }
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r;
+}
+async function getJson(ctx, url, opts){ return (await http(ctx,url,opts)).json(); }
+async function getText(ctx, url, opts){ return (await http(ctx,url,opts)).text(); }
+
+/* ---------- collectors ---------- */
+async function cisa(ctx){
+  const j = await getJson(ctx,'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json');
+  const cutoff = sinceDate(ctx.days), out=[];
+  for(const v of (j.vulnerabilities||[])){
+    const added = new Date(v.dateAdded+'T00:00:00Z');
+    if(isNaN(added) || added < cutoff) continue;
+    const ransom = String(v.knownRansomwareCampaignUse||'').toLowerCase()==='known';
+    out.push(item({
+      id:`CISA-${v.cveID}`, title:`${v.cveID}: ${v.vulnerabilityName}`, type:'vuln',
+      severity: ransom?'critical':'high', tier:'verified', source:'CISA Known Exploited Vulnerabilities',
+      ioc:v.cveID, date:added.toISOString().slice(0,19)+'+00:00', sector:'Multiple', region:'Global',
+      summary:`${v.vendorProject||''} ${v.product||''}. ${v.shortDescription||''} Required action: ${v.requiredAction||''}`,
+      mitre:['T1190']}));
+  }
+  return out;
+}
+
+async function nvd(ctx){
+  const end = new Date(), start = new Date(end - Math.min(ctx.days,120)*864e5);
+  const fmt = d => d.toISOString().slice(0,19)+'.000';
+  const qs = new URLSearchParams({lastModStartDate:fmt(start), lastModEndDate:fmt(end), resultsPerPage:'200'});
+  const headers = ctx.k.nvd ? {apiKey: ctx.k.nvd} : {};
+  const j = await getJson(ctx, 'https://services.nvd.nist.gov/rest/json/cves/2.0?'+qs, {headers});
+  const out=[];
+  for(const w of (j.vulnerabilities||[])){
+    const c=w.cve, m=c.metrics||{};
+    let score=null, sev='medium';
+    for(const k of ['cvssMetricV31','cvssMetricV30','cvssMetricV2']){
+      if(m[k] && m[k].length){ const d=m[k][0].cvssData; score=d.baseScore??null;
+        sev=String(d.baseSeverity||m[k][0].baseSeverity||'medium').toLowerCase(); break; }
+    }
+    const desc=(c.descriptions||[]).find(x=>x.lang==='en')?.value||'';
+    out.push(item({
+      id:`NVD-${c.id}`, title:`${c.id} (CVSS ${score??'n/a'})`, type:'vuln', severity:SEV_MAP[sev]||'medium',
+      tier:'verified', source:'NVD (NIST) CVE API 2.0', ioc:c.id, date:normTs(c.published)||nowIso(),
+      summary:desc.slice(0,600), mitre:['T1190']}));
+  }
+  return out;
+}
+
+async function urlhaus(ctx){
+  const text = await getText(ctx,'https://urlhaus.abuse.ch/downloads/csv_recent/');
+  const lines = text.split('\n').filter(l=>l && !l.startsWith('#'));
+  const out=[];
+  for(const line of lines){
+    const row = parseCsvLine(line);
+    if(row.length<7) continue;
+    const [uid,dateadded,url,status,,threat,tags] = row;
+    out.push(item({
+      id:`URLHAUS-${uid}`, title:`Malware distribution URL (${threat||'unknown'})`, type:'ioc',
+      severity: status==='online'?'high':'medium', tier:'trusted', source:'abuse.ch URLhaus',
+      ioc:url, date:normTs(dateadded)||nowIso(), summary:`Status: ${status}. Tags: ${tags}`, mitre:['T1105']}));
+    if(out.length>=500) break;
+  }
+  return out;
+}
+
+async function threatfox(ctx){
+  if(!ctx.k.tf) throw new Error('not run: ThreatFox Auth-Key not provided');
+  const j = await getJson(ctx,'https://threatfox-api.abuse.ch/api/v1/',{
+    method:'POST', headers:{'Auth-Key':ctx.k.tf,'Content-Type':'application/json'},
+    body: JSON.stringify({query:'get_iocs', days:Math.min(ctx.days,7)})});
+  return (j.data||[]).slice(0,500).map(d=>item({
+    id:`TFOX-${d.id}`, title:`${d.malware_printable||'unknown'} IOC (${d.ioc_type||''})`, type:'ioc',
+    severity:(d.confidence_level||0)>=75?'high':'medium', tier:'trusted', source:'abuse.ch ThreatFox',
+    actor:d.malware_printable||'Unattributed', ioc:d.ioc||'', date:normTs(d.first_seen_utc)||nowIso(),
+    summary:`Threat type: ${d.threat_type||''}. Tags: ${(d.tags||[]).join(', ')}`}));
+}
+
+async function otx(ctx){
+  if(!ctx.k.otx) throw new Error('not run: OTX key not provided');
+  const since = sinceDate(ctx.days).toISOString().slice(0,19);
+  const j = await getJson(ctx,`https://otx.alienvault.com/api/v1/pulses/subscribed?modified_since=${encodeURIComponent(since)}&limit=50`,
+    {headers:{'X-OTX-API-KEY':ctx.k.otx}});
+  const out=[];
+  for(const p of (j.results||[])){
+    out.push(item({id:`OTX-${p.id}`, title:p.name||'OTX pulse', type:'campaign', severity:'medium', tier:'trusted',
+      source:'AlienVault OTX', actor:p.adversary||'Unattributed', date:normTs(p.modified)||nowIso(),
+      summary:String(p.description||'').slice(0,500), mitre:[]}));
+    for(const ind of (p.indicators||[]).slice(0,20)){
+      out.push(item({id:`OTX-${p.id}-${ind.id}`, title:`${ind.type||'IOC'} from pulse`, type:'ioc', severity:'medium',
+        tier:'trusted', source:'AlienVault OTX', ioc:ind.indicator||'', date:normTs(ind.created)||nowIso(), summary:p.name||''}));
+    }
+  }
+  return out;
+}
+
+async function feodo(ctx){
+  const j = await getJson(ctx,'https://feodotracker.abuse.ch/downloads/ipblocklist.json');
+  const cutoff = sinceDate(ctx.days), out=[];
+  for(const e of (Array.isArray(j)?j:[])){
+    const ip=String(e.ip_address||'').trim(), when=normTs(e.last_online||e.first_seen);
+    if(!ip || !when || new Date(when) < cutoff) continue;
+    const malware=e.malware||'unknown', status=String(e.status||'unknown').toLowerCase();
+    out.push(item({id:`FEODO-${ip}-${e.port}`, title:`${malware} botnet C2 ${ip}:${e.port}`, type:'ioc',
+      severity: status==='online'?'high':'medium', tier:'trusted', source:'abuse.ch Feodo Tracker',
+      actor:malware, ioc:ip, date:when, region:e.country||'Global',
+      summary:`Status: ${status}. AS: ${e.as_name||'unknown'}. Hostname: ${e.hostname||'none'}.`}));
+  }
+  return out;
+}
+
+async function ransomware(ctx){
+  const j = await getJson(ctx,'https://api.ransomware.live/v2/recentvictims');
+  const cutoff = sinceDate(ctx.days), out=[];
+  for(const v of (Array.isArray(j)?j:[])){
+    const when = normTs(v.discovered||v.published||v.attackdate);
+    if(!when || new Date(when) < cutoff) continue;
+    const group=v.group_name||'unknown group', victim=v.post_title||'undisclosed victim', country=v.country||'unknown';
+    const digest = await shortHash(`${group}|${victim}|${when}`);
+    out.push(item({id:`RANSOM-${digest}`, title:`Leak-site claim: ${group} lists ${victim}`, type:'leak',
+      severity:'high', tier:'unverified', source:'Ransomware leak-site aggregator', actor:group, region:country, date:when,
+      summary:`Claim posted by ${group}; not confirmed by the victim. Country: ${country}.`}));
+  }
+  return out;
+}
+
+async function ghsa(ctx){
+  const headers={Accept:'application/vnd.github+json'};
+  if(ctx.k.gh) headers.Authorization='Bearer '+ctx.k.gh;
+  const j = await getJson(ctx,'https://api.github.com/advisories?per_page=100&sort=published&direction=desc',{headers});
+  const cutoff = sinceDate(ctx.days), out=[];
+  for(const a of (Array.isArray(j)?j:[])){
+    const when = normTs(a.published_at);
+    if(!when || new Date(when) < cutoff) continue;
+    const pkgs=[...new Set((a.vulnerabilities||[]).filter(v=>v.package).map(v=>`${v.package.ecosystem}/${v.package.name}`))].sort();
+    const cve=a.cve_id||'';
+    out.push(item({id:`GHSA-${a.ghsa_id}`, title:`${cve||a.ghsa_id}: ${a.summary||''}`.replace(/[:\s]+$/,''), type:'vuln',
+      severity:SEV_MAP[String(a.severity||'').toLowerCase()]||'medium', tier:'verified', source:'GitHub Security Advisories',
+      ioc:cve, date:when, summary:((a.description||a.summary||'').slice(0,500))+(pkgs.length?` Packages: ${pkgs.join(', ')}.`:'')}));
+  }
+  return out;
+}
+
+// Names must match the console's SOURCES list exactly (the validator joins on name).
+const SRC = [
+  {name:'CISA Known Exploited Vulnerabilities', tier:'verified', run:cisa},
+  {name:'NVD (NIST) CVE API 2.0', tier:'verified', run:nvd, optKey:'nvd'},
+  {name:'abuse.ch URLhaus', tier:'trusted', run:urlhaus},
+  {name:'abuse.ch ThreatFox', tier:'trusted', run:threatfox, needKey:'tf'},
+  {name:'AlienVault OTX', tier:'trusted', run:otx, needKey:'otx'},
+  {name:'abuse.ch Feodo Tracker', tier:'trusted', run:feodo},
+  {name:'Ransomware leak-site aggregator', tier:'unverified', run:ransomware},
+  {name:'GitHub Security Advisories', tier:'verified', run:ghsa, optKey:'gh'},
+];
+
+/* ---------- validation (mirrors threatintflux_validate.py; the console re-checks on import) ---------- */
+function validateFeed(feed){
+  const errors=[], seen=new Set(), now=Date.now()+5*60e3;
+  feed.items.forEach((it,i)=>{
+    const w=`items[${i}] (${it.id})`;
+    for(const k of ['id','title','type','severity','tier','source','date']) if(!it[k]) errors.push(`${w}: missing '${k}'`);
+    if(seen.has(it.id)) errors.push(`${w}: duplicate id`); seen.add(it.id);
+    if(!TYPES.includes(it.type)) errors.push(`${w}: unknown type '${it.type}'`);
+    if(!SEVS.includes(it.severity)) errors.push(`${w}: unknown severity '${it.severity}'`);
+    if(!TIERS.includes(it.tier)) errors.push(`${w}: unknown tier '${it.tier}'`);
+    if(it.date && !/(Z|[+-]\d\d:\d\d)$/.test(it.date)) errors.push(`${w}: date has no timezone`);
+    else if(it.date && new Date(it.date).getTime() > now) errors.push(`${w}: date is in the future`);
+    for(const t of it.mitre||[]) if(!/^T\d{4}(\.\d{3})?$/.test(t)) errors.push(`${w}: malformed MITRE technique '${t}'`);
+  });
+  const counts={}; feed.items.forEach(it=>counts[it.source]=(counts[it.source]||0)+1);
+  feed.sources.forEach(s=>{
+    if(s.status==='ok' && s.count>0 && !counts[s.name]) errors.push(`source '${s.name}' is ok but no item carries its name`);
+  });
+  return errors;
+}
+
+/* ---------- UI ---------- */
+function rowFor(name){ return document.querySelector(`tr[data-name="${CSS.escape(name)}"]`); }
+function setRow(name, status, count, detail){
+  const r=rowFor(name); if(!r) return;
+  const st=r.querySelector('.st'), ct=r.querySelector('.ct'), dt=r.querySelector('.dt');
+  st.textContent=status; st.className='st '+({ok:'s-ok',error:'s-err',running:'s-run'}[status]||'s-idle');
+  ct.textContent = count==null ? '' : String(count);
+  dt.textContent = detail||'';
+}
+function renderTable(){
+  $('srcBody').innerHTML='';
+  for(const s of SRC){
+    const tr=document.createElement('tr'); tr.dataset.name=s.name;
+    tr.innerHTML=`<td></td><td><span class="chip">${s.tier}</span></td><td class="st s-idle">idle</td><td class="ct"></td><td class="dt"></td>`;
+    tr.firstChild.textContent=s.name;
+    $('srcBody').appendChild(tr);
+  }
+}
+function ctxFromInputs(){
+  return {
+    days:+$('days').value,
+    proxy:$('proxy').value.trim(),
+    k:{tf:$('k_tf').value.trim(), otx:$('k_otx').value.trim(), gh:$('k_gh').value.trim(), nvd:$('k_nvd').value.trim()},
+  };
+}
+
+async function runCollection(){
+  const ctx=ctxFromInputs();
+  $('run').disabled=true; $('dl').disabled=true; $('send').disabled=true; RESULTS=null;
+  $('problems').innerHTML=''; $('log').textContent=''; $('summary').textContent='Running...';
+  renderTable();
+  log(`Window: ${ctx.days} day(s). Proxy: ${ctx.proxy||'none (direct)'}. Keys held in memory only.`);
+
+  const statuses = await Promise.all(SRC.map(async s=>{
+    setRow(s.name,'running',null,'');
+    try{
+      const items = await s.run(ctx);
+      setRow(s.name,'ok',items.length,'');
+      log(`[ok]    ${s.name}: ${items.length} items`);
+      return {name:s.name, status:'ok', count:items.length, error:null, items};
+    }catch(e){
+      const msg=String(e.message||e).slice(0,300);
+      setRow(s.name,'error',0,msg);
+      log(`[error] ${s.name}: ${msg}`);
+      return {name:s.name, status:'error', count:0, error:msg, items:[]};
+    }
+  }));
+
+  const dedup=new Map();
+  statuses.forEach(s=>s.items.forEach(it=>dedup.set(it.id,it)));
+  const feed={generated_at:nowIso(), mode:'live', window_days:ctx.days,
+    sources:statuses.map(({name,status,count,error})=>({name,status,count,error})),
+    items:[...dedup.values()]};
+
+  const errors=validateFeed(feed);
+  const ok=feed.sources.filter(s=>s.status==='ok').length;
+  $('summary').textContent=`${feed.items.length} items from ${ok}/${feed.sources.length} sources.`;
+  if(errors.length){
+    $('problems').innerHTML=`<div class="bad">Validation found ${errors.length} problem(s). Fix or re-run before sending. First few:</div><pre>${errors.slice(0,20).map(e=>e.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))).join('\n')}</pre>`;
+    log(`Validation: ${errors.length} problem(s). Not sending.`);
+  } else {
+    log(`Validation passed: ${feed.items.length} items.`);
+    RESULTS={feed};
+    $('dl').disabled=false; $('send').disabled=false;
+  }
+  $('run').disabled=false;
+}
+
+function downloadFeed(){
+  if(!RESULTS) return;
+  const blob=new Blob([JSON.stringify(RESULTS.feed,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='threatintflux_feed.json';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  log('Downloaded threatintflux_feed.json. Place it beside index.html, or import it in the console Settings.');
+}
+
+// Writes the dataset in the same shape the console saves, so the console opens it on load.
+// Works only when this page and the console are served from the same origin (same folder, same server).
+function sendToConsole(){
+  if(!RESULTS) return;
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify({items:RESULTS.feed.items,
+      meta:{generated_at:RESULTS.feed.generated_at, sources:RESULTS.feed.sources, mitre_techniques:null}}));
+    log('Sent to console. Open the console to see the dataset.');
+    $('summary').textContent += ' Sent to the console in this browser.';
+  }catch(e){
+    log('Could not write to browser storage: '+e.message+'. Download the JSON and import it in the console instead.');
+  }
+}
+
+$('run').addEventListener('click', runCollection);
+$('dl').addEventListener('click', downloadFeed);
+$('send').addEventListener('click', sendToConsole);
+renderTable();
+</script>
+</body>
+</html>
