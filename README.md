@@ -36,7 +36,9 @@ pip install requests
 export THREATFOX_KEY=...           # optional, free key from abuse.ch
 export OTX_KEY=...                 # optional, free key from AlienVault OTX
 export NVD_KEY=...                 # optional, raises NVD rate limits
+export GITHUB_TOKEN=...            # optional, raises the GitHub advisories rate limit
 python3 threatintflux_collector.py --days 7
+python3 threatintflux_collector.py --days 7 --mitre   # also exports the full ATT&CK matrix
 
 # Validate the result
 python3 threatintflux_validate.py threatintflux_feed.json
@@ -62,6 +64,10 @@ Collected by the collector:
 - abuse.ch URLhaus (trusted)
 - abuse.ch ThreatFox (trusted, needs a free key)
 - AlienVault OTX subscribed pulses (trusted, needs a free key)
+- abuse.ch Feodo Tracker botnet C2 blocklist (trusted, no key)
+- GitHub Security Advisories (verified, optional token)
+- Ransomware leak-site aggregator, ransomware.live (unverified: these are the groups' own claims)
+- MITRE ATT&CK Enterprise technique list for the matrix (verified reference, `--mitre` only; produces no items)
 
 Listed as reference only and not ingested: the curated OSINT directories on start.me that the console's Source Verification page links to. They are link collections, not feeds.
 
@@ -82,7 +88,8 @@ python3 -m pytest tests/ -q
 ## Limitations
 
 - The collector has been tested against fixture responses. Field names come from each provider's documented format, but a live run may still surface format drift. Run the validator after each collection.
-- The MITRE matrix in the console covers 14 tactics and a representative subset of techniques. Full coverage needs the ATT&CK STIX bundle, which is not loaded yet.
+- Without `--mitre`, the MITRE matrix uses a built-in subset of techniques. With `--mitre`, the collector exports the full Enterprise list and the matrix uses it.
+- The Sources view shows a health line and each source's error from the last run. Sources that fail are never filled with items.
 - Charts use Chart.js from a CDN. Without it, the rest of the console still works and charts show a note.
 - Severity is the source's rating, not an assessment of impact on your organisation.
 

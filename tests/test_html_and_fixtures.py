@@ -45,3 +45,15 @@ def test_fixture_feed_is_valid():
     assert errors == []
     assert feed["mode"] == "sample"
     assert all(i["synthetic"] for i in feed["items"]), "fixture must be clearly synthetic"
+
+
+def test_every_collector_source_is_listed_in_console():
+    """The validator joins source status to items by display name, so the names must match exactly."""
+    import threatintflux_collector as tc
+    html = open(os.path.join(ROOT, "index.html"), encoding="utf-8").read()
+    block = html[html.index("const SOURCES = ["):html.index("];", html.index("const SOURCES = ["))]
+    console_names = set(re.findall(r"name:'([^']+)'", block))
+    collector_names = {name for name, _ in tc.SOURCES} | {tc.MITRE_SOURCE}
+    missing = collector_names - console_names
+    assert not missing, f"collector sources missing from console SOURCES: {missing}"
+

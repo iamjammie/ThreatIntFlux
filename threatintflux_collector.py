@@ -16,6 +16,7 @@ Usage:
 """
 import argparse
 import csv
+import hashlib
 import io
 import json
 import os
@@ -43,6 +44,8 @@ def norm_ts(value):
     if not value:
         return None
     s = str(value).strip()
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
     if s.endswith(" UTC"):
         s = s[:-4].strip()
     s = s.replace(" ", "T", 1) if "T" not in s and " " in s else s
@@ -126,8 +129,21 @@ def collect_nvd(days):
 
 
 # ---------------------------------------------------------------- MITRE ATT&CK STIX (verified reference)
+MITRE_SOURCE = "MITRE ATT&CK (STIX 2.1)"
+
+
+def tactic_display(kebab):
+    """'command-and-control' -> 'Command and Control', matching the console's TACTICS names."""
+    words = [w.capitalize() for w in kebab.split("-")]
+    return " ".join("and" if w == "And" else w for w in words)
+
+
 def collect_mitre_stix():
-    """Returns technique metadata used to validate the console's matrix. Stored in feed meta."""
+    """Full Enterprise ATT&CK technique list for the console matrix (exported with --mitre).
+
+    Returns [{"id", "name", "tactics": [display names]}]. Revoked and deprecated techniques are skipped.
+    This produces no intel items; it only feeds the matrix.
+    """
     url = ("https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/"
            "enterprise-attack/enterprise-attack.json")
     r = requests.get(url, timeout=120, headers={"User-Agent": UA})
@@ -138,8 +154,8 @@ def collect_mitre_stix():
             ext = next((e for e in o.get("external_references", []) if e.get("source_name") == "mitre-attack"), None)
             if ext:
                 techs.append({"id": ext["external_id"], "name": o["name"],
-                              "tactics": [p["phase_name"] for p in o.get("kill_chain_phases", [])]})
-    return techs  # returned for matrix export; not converted to intel items
+                              "tactics": [tactic_display(p["phase_name"]) for p in o.get("kill_chain_phases", [])]})
+    return techs
 
 
 # ---------------------------------------------------------------- URLhaus recent CSV (trusted)
@@ -212,6 +228,103 @@ def collect_otx(days):
     return out
 
 
+# ---------------------------------------------------------------- Ransomware leak-site aggregator (unverified claims)
+RANSOM_SOURCE = "Ransomware leak-site aggregator"
+
+
+def collect_ransomware_live(days):
+    """Victim listings posted by extortion groups on their leak sites.
+
+    These are the groups' own claims. Nothing here is confirmed by the victim, so every item is
+    'unverified'. Only the listing metadata is kept; no leaked files are fetched.
+    """
+    r = requests.get("https://api.ransomware.live/v2/recentvictims", timeout=TIMEOUT,
+                     headers={"User-Agent": UA})
+    r.raise_for_status()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    out = []
+    for v in r.json() or []:
+        when = norm_ts(v.get("discovered") or v.get("published") or v.get("attackdate"))
+        if not when or datetime.fromisoformat(when) < cutoff:
+            continue
+        group = v.get("group_name") or "unknown group"
+        victim = v.get("post_title") or "undisclosed victim"
+        digest = hashlib.sha1(f"{group}|{victim}|{when}".encode("utf-8")).hexdigest()[:16]
+        country = v.get("country") or "unknown"
+        out.append(item(
+            id=f"RANSOM-{digest}", title=f"Leak-site claim: {group} lists {victim}",
+            type="leak", severity="high", tier="unverified", source=RANSOM_SOURCE,
+            actor=group, region=country, date=when,
+            summary=f"Claim posted by {group}; not confirmed by the victim. Country: {country}.",
+        ))
+    return out
+
+
+# ---------------------------------------------------------------- abuse.ch Feodo Tracker (trusted)
+FEODO_SOURCE = "abuse.ch Feodo Tracker"
+
+
+def collect_feodo(days):
+    """Botnet command-and-control servers from the Feodo Tracker IP blocklist. No key required."""
+    r = requests.get("https://feodotracker.abuse.ch/downloads/ipblocklist.json", timeout=TIMEOUT,
+                     headers={"User-Agent": UA})
+    r.raise_for_status()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    out = []
+    for e in r.json() or []:
+        ip = str(e.get("ip_address", "")).strip()
+        when = norm_ts(e.get("last_online") or e.get("first_seen"))
+        if not ip or not when or datetime.fromisoformat(when) < cutoff:
+            continue
+        malware = e.get("malware") or "unknown"
+        port = e.get("port")
+        status = str(e.get("status", "unknown")).lower()
+        out.append(item(
+            id=f"FEODO-{ip}-{port}", title=f"{malware} botnet C2 {ip}:{port}",
+            type="ioc", severity="high" if status == "online" else "medium", tier="trusted",
+            source=FEODO_SOURCE, actor=malware, ioc=ip, date=when,
+            region=e.get("country") or "Global",
+            summary=f"Status: {status}. AS: {e.get('as_name') or 'unknown'}. "
+                    f"Hostname: {e.get('hostname') or 'none'}.",
+        ))
+    return out
+
+
+# ---------------------------------------------------------------- GitHub Security Advisories (verified)
+GHSA_SOURCE = "GitHub Security Advisories"
+
+
+def collect_ghsa(days):
+    """Maintainer-published advisories for open-source packages.
+
+    Set GITHUB_TOKEN to raise the rate limit (unauthenticated requests are limited to 60 an hour).
+    """
+    headers = {"User-Agent": UA, "Accept": "application/vnd.github+json"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    r = requests.get("https://api.github.com/advisories", timeout=TIMEOUT, headers=headers,
+                     params={"per_page": 100, "sort": "published", "direction": "desc"})
+    r.raise_for_status()
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    out = []
+    for a in r.json() or []:
+        when = norm_ts(a.get("published_at"))
+        if not when or datetime.fromisoformat(when) < cutoff:
+            continue
+        pkgs = sorted({f"{v['package']['ecosystem']}/{v['package']['name']}"
+                       for v in a.get("vulnerabilities") or [] if v.get("package")})
+        cve = a.get("cve_id") or ""
+        out.append(item(
+            id=f"GHSA-{a['ghsa_id']}", title=f"{cve or a['ghsa_id']}: {a.get('summary', '')}".strip(": "),
+            type="vuln", severity=SEV_MAP.get(str(a.get("severity", "")).lower(), "medium"),
+            tier="verified", source=GHSA_SOURCE, ioc=cve, date=when,
+            summary=(a.get("description") or a.get("summary") or "")[:500]
+                    + (f" Packages: {', '.join(pkgs)}." if pkgs else ""),
+        ))
+    return out
+
+
 # ---------------------------------------------------------------- Runner
 SOURCES = [
     ("CISA Known Exploited Vulnerabilities", collect_cisa_kev),
@@ -219,6 +332,9 @@ SOURCES = [
     ("abuse.ch URLhaus", collect_urlhaus),
     ("abuse.ch ThreatFox", collect_threatfox),
     ("AlienVault OTX", collect_otx),
+    (RANSOM_SOURCE, collect_ransomware_live),
+    (FEODO_SOURCE, collect_feodo),
+    (GHSA_SOURCE, collect_ghsa),
 ]
 
 
@@ -226,6 +342,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="threatintflux_feed.json")
     ap.add_argument("--days", type=int, default=7)
+    ap.add_argument("--mitre", action="store_true",
+                    help="also export the full ATT&CK technique list for the console matrix")
     args = ap.parse_args()
 
     items, status = [], []
@@ -239,6 +357,16 @@ def main():
             status.append({"name": name, "status": "error", "count": 0, "error": str(e)[:300]})
             print(f"[error] {name}: {e}", file=sys.stderr)
 
+    mitre_techniques = None
+    if args.mitre:
+        try:
+            mitre_techniques = collect_mitre_stix()
+            status.append({"name": MITRE_SOURCE, "status": "ok", "count": 0, "error": None})
+            print(f"[ok]    {MITRE_SOURCE}: {len(mitre_techniques)} techniques")
+        except Exception as e:
+            status.append({"name": MITRE_SOURCE, "status": "error", "count": 0, "error": str(e)[:300]})
+            print(f"[error] {MITRE_SOURCE}: {e}", file=sys.stderr)
+
     # de-duplicate by id, keep latest
     dedup = {}
     for it in items:
@@ -250,6 +378,8 @@ def main():
         "sources": status,
         "items": list(dedup.values()),
     }
+    if mitre_techniques is not None:
+        feed["mitre_techniques"] = mitre_techniques
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(feed, f, indent=2)
     ok = sum(1 for s in status if s["status"] == "ok")

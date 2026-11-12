@@ -115,6 +115,96 @@ def test_no_fabrication_when_source_fails(monkeypatch):
         tc.collect_cisa_kev(days=7)
 
 
+# ------------------------------------------------------------------ batch 1 collectors (fixtures)
+def _now_str(hours_ago=1):
+    return (tc.datetime.now(tc.timezone.utc) - tc.timedelta(hours=hours_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def test_ransomware_claims_are_unverified_and_stable_ids():
+    recent = {"post_title": "Example Holdings Ltd", "group_name": "examplegroup",
+              "discovered": _now_str(2), "country": "IN"}
+    old = {"post_title": "Old Victim", "group_name": "examplegroup", "discovered": "2019-01-01 00:00:00"}
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp([recent, old])):
+        first = tc.collect_ransomware_live(days=7)
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp([recent, old])):
+        second = tc.collect_ransomware_live(days=7)
+    assert len(first) == 1
+    it = first[0]
+    assert it["tier"] == "unverified" and it["type"] == "leak"
+    assert it["source"] == tc.RANSOM_SOURCE
+    assert it["id"] == second[0]["id"], "ids must be stable across runs so the feed de-duplicates"
+    assert it["region"] == "IN" and it["actor"] == "examplegroup"
+    assert "not confirmed by the victim" in it["summary"]
+
+
+def test_feodo_marks_online_c2_high_and_offline_medium():
+    entries = [
+        {"ip_address": "203.0.113.10", "port": 443, "status": "online", "malware": "Dridex",
+         "last_online": _now_str(1), "first_seen": "2026-11-01 00:00:00", "country": "US", "as_name": "EXAMPLE-AS"},
+        {"ip_address": "203.0.113.11", "port": 8080, "status": "offline", "malware": "QakBot",
+         "last_online": _now_str(2), "first_seen": "2026-11-01 00:00:00"},
+        {"ip_address": "203.0.113.12", "port": 80, "status": "offline", "malware": "Emotet",
+         "last_online": "2019-01-01 00:00:00", "first_seen": "2019-01-01 00:00:00"},
+    ]
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp(entries)):
+        out = tc.collect_feodo(days=7)
+    assert [i["ioc"] for i in out] == ["203.0.113.10", "203.0.113.11"]
+    assert out[0]["severity"] == "high" and out[1]["severity"] == "medium"
+    assert out[0]["tier"] == "trusted" and out[0]["source"] == tc.FEODO_SOURCE
+    assert out[0]["title"] == "Dridex botnet C2 203.0.113.10:443"
+
+
+def test_ghsa_maps_severity_cve_and_packages(monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    advisories = [
+        {"ghsa_id": "GHSA-aaaa-bbbb-cccc", "cve_id": "CVE-2026-1234", "summary": "Path traversal",
+         "description": "Details of the flaw.", "severity": "critical", "published_at": _now_str(3),
+         "vulnerabilities": [{"package": {"ecosystem": "npm", "name": "example-lib"}},
+                             {"package": {"ecosystem": "npm", "name": "example-lib"}}]},
+        {"ghsa_id": "GHSA-dddd-eeee-ffff", "cve_id": None, "summary": "Old", "severity": "low",
+         "published_at": "2019-01-01T00:00:00Z", "vulnerabilities": []},
+    ]
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp(advisories)) as get:
+        out = tc.collect_ghsa(days=7)
+    assert len(out) == 1
+    it = out[0]
+    assert it["id"] == "GHSA-GHSA-aaaa-bbbb-cccc"
+    assert it["severity"] == "critical" and it["tier"] == "verified" and it["type"] == "vuln"
+    assert it["ioc"] == "CVE-2026-1234"
+    assert it["title"].startswith("CVE-2026-1234: Path traversal")
+    assert it["summary"].endswith("Packages: npm/example-lib.")
+    assert "Authorization" not in get.call_args.kwargs["headers"]
+
+
+def test_ghsa_sends_token_when_set(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t0k")
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp([])) as get:
+        tc.collect_ghsa(days=7)
+    assert get.call_args.kwargs["headers"]["Authorization"] == "Bearer t0k"
+
+
+def test_mitre_export_uses_display_tactic_names_and_skips_revoked():
+    bundle = {"objects": [
+        {"type": "attack-pattern", "name": "Valid Account", "external_references": [
+            {"source_name": "mitre-attack", "external_id": "T1078"}],
+         "kill_chain_phases": [{"phase_name": "defense-evasion"}, {"phase_name": "initial-access"}]},
+        {"type": "attack-pattern", "name": "Old", "revoked": True, "external_references": [
+            {"source_name": "mitre-attack", "external_id": "T9999"}], "kill_chain_phases": []},
+        {"type": "attack-pattern", "name": "C2 Thing", "external_references": [
+            {"source_name": "mitre-attack", "external_id": "T1071"}],
+         "kill_chain_phases": [{"phase_name": "command-and-control"}]},
+    ]}
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp(bundle)):
+        techs = tc.collect_mitre_stix()
+    assert [t["id"] for t in techs] == ["T1078", "T1071"]
+    assert techs[0]["tactics"] == ["Defense Evasion", "Initial Access"]
+    assert techs[1]["tactics"] == ["Command and Control"]
+
+
+def test_norm_ts_accepts_github_z_suffix():
+    assert tc.norm_ts("2026-11-11T06:00:00Z") == "2026-11-11T06:00:00+00:00"
+
+
 # ------------------------------------------------------------------ validator
 def _good_item(**over):
     base = {"id": "X-1", "title": "t", "type": "vuln", "severity": "high", "tier": "verified",
@@ -198,3 +288,49 @@ def test_validator_cli_roundtrip(tmp_path):
     p.write_text(json.dumps(_feed([_good_item(severity="bogus")])), encoding="utf-8")
     with mock.patch.object(sys, "argv", ["x", str(p)]):
         assert tv.main() == 1
+
+
+def test_mitre_techniques_block_is_checked():
+    good = {"id": "T1078", "name": "Valid Accounts", "tactics": ["Initial Access"]}
+    errors, _ = tv.validate(_feed([], mitre_techniques=[good]))
+    assert errors == []
+    errors, _ = tv.validate(_feed([], mitre_techniques=[dict(good, id="T12")]))
+    assert any("malformed technique id" in e for e in errors)
+    errors, _ = tv.validate(_feed([], mitre_techniques=[dict(good, name="")]))
+    assert any("missing name" in e for e in errors)
+    errors, _ = tv.validate(_feed([], mitre_techniques=[dict(good, tactics="Initial Access")]))
+    assert any("'tactics' must be a list" in e for e in errors)
+    errors, _ = tv.validate(_feed([], mitre_techniques="nope"))
+    assert any("'mitre_techniques' must be a list" in e for e in errors)
+
+
+def test_new_source_status_joins_by_name():
+    feed = _feed([_good_item(source=tc.FEODO_SOURCE)], sources=[
+        {"name": tc.FEODO_SOURCE, "status": "ok", "count": 1},
+        {"name": tc.GHSA_SOURCE, "status": "error", "count": 0, "error": "rate limited"},
+        {"name": tc.MITRE_SOURCE, "status": "ok", "count": 0},
+    ])
+    errors, _ = tv.validate(feed)
+    assert errors == []
+
+
+def test_runner_writes_mitre_techniques_only_with_flag(tmp_path, monkeypatch):
+    """main() runs every source; here they are stubbed so the test stays offline."""
+    monkeypatch.setattr(tc, "SOURCES", [("Stub source", lambda days: [])])
+    techs = [{"id": "T1078", "name": "Valid Accounts", "tactics": ["Initial Access"]}]
+    monkeypatch.setattr(tc, "collect_mitre_stix", lambda: techs)
+
+    plain = tmp_path / "plain.json"
+    with mock.patch.object(sys, "argv", ["x", "--out", str(plain)]):
+        tc.main()
+    assert "mitre_techniques" not in json.loads(plain.read_text(encoding="utf-8"))
+
+    with_mitre = tmp_path / "mitre.json"
+    with mock.patch.object(sys, "argv", ["x", "--out", str(with_mitre), "--mitre"]):
+        tc.main()
+    feed = json.loads(with_mitre.read_text(encoding="utf-8"))
+    assert feed["mitre_techniques"] == techs
+    assert any(s["name"] == tc.MITRE_SOURCE and s["status"] == "ok" for s in feed["sources"])
+    errors, _ = tv.validate(feed)
+    assert errors == []
+

@@ -271,7 +271,7 @@ td.t{color:var(--txt);font-weight:600}
 
     <!-- MITRE -->
     <section class="view" id="v-mitre">
-      <div class="head"><div><h2>MITRE ATT&amp;CK Matrix</h2><p>Click a technique to correlate. Red cells contain items in the current dataset.</p></div>
+      <div class="head"><div><h2>MITRE ATT&amp;CK Matrix</h2><p>Click a technique to correlate. Red cells contain items in the current dataset.</p><p class="note" id="mSrc" style="margin-top:4px"></p></div>
         <div style="display:flex;gap:10px"><button class="btn ghost" onclick="mitreFilter=null;renderMitre()">Clear selection</button></div></div>
       <div class="panel"><div class="matrix" id="matrix"></div>
         <div class="heat"><span>Coverage</span><i style="background:#0a1526;border:1px solid #14284a"></i><span>none</span><i style="background:rgba(255,59,92,.4)"></i><span>observed</span></div>
@@ -313,7 +313,8 @@ td.t{color:var(--txt);font-weight:600}
         <div class="kpi"><div class="l"><span class="chip t-unverified">Unverified</span></div><div class="s" style="margin-top:10px">Claims with no independent confirmation, such as forum posts or aggregator listings.</div></div>
         <div class="kpi"><div class="l"><span class="chip t-untrusted">Untrusted</span></div><div class="s" style="margin-top:10px">Failed validation, unknown provenance or known-false reporting. Excluded from reports.</div></div>
       </div>
-      <div class="src-grid" id="srcGrid" style="margin-top:18px"></div>
+      <div class="note" id="srcHealth" style="margin-top:16px"></div>
+      <div class="src-grid" id="srcGrid" style="margin-top:12px"></div>
     </section>
 
     <!-- REPORTS -->
@@ -397,6 +398,8 @@ const SOURCES = [
  {name:'abuse.ch URLhaus', tier:'trusted', kind:'Feed', url:'https://urlhaus.abuse.ch/', desc:'Community-curated malware distribution URLs with editorial review.'},
  {name:'abuse.ch ThreatFox', tier:'trusted', kind:'Feed', url:'https://threatfox.abuse.ch/', desc:'Malware IOC sharing platform. Requires a free Auth-Key.'},
  {name:'AlienVault OTX', tier:'trusted', kind:'Feed', url:'https://otx.alienvault.com/', desc:'Community pulses. Requires a free API key; subscribed pulses are used.'},
+ {name:'abuse.ch Feodo Tracker', tier:'trusted', kind:'Feed', url:'https://feodotracker.abuse.ch/', desc:'Botnet command-and-control server blocklist for families such as Dridex, Emotet and QakBot. No key required.'},
+ {name:'GitHub Security Advisories', tier:'verified', kind:'Feed', url:'https://github.com/advisories', desc:'Maintainer-published advisories for open-source packages. Set GITHUB_TOKEN to raise the rate limit.'},
  {name:'Ransomware leak-site aggregator', tier:'unverified', kind:'Claims', url:'https://www.ransomware.live/', desc:'Victim listings posted by extortion groups. Claims only, not confirmed by victims.'},
  {name:'Start.me: Open Source Investigative Tools', tier:'unverified', kind:'Reference', url:'https://start.me/p/gyvaAJ/open-source-investigative-tools', desc:'Curated OSINT tool directory. Reference only; not ingested.'},
  {name:'Start.me: OSINT Dark Web (Russia)', tier:'unverified', kind:'Reference', url:'https://start.me/p/kx5qL5/osint-darkweb-russia', desc:'Dark web and regional OSINT reference page. Reference only.'},
@@ -705,18 +708,28 @@ function runSearch(){
 /* ==================================================================
    MITRE
    ================================================================== */
+/* Techniques for a tactic: the collector's full ATT&CK list when loaded, otherwise the built-in subset. */
+function techFor(tname){
+  const live=FEED_META&&Array.isArray(FEED_META.mitre_techniques)?FEED_META.mitre_techniques:null;
+  if(live&&live.length){
+    return live.filter(t=>t&&/^T\d{4}(\.\d{3})?$/.test(t.id)&&t.name&&Array.isArray(t.tactics)&&t.tactics.includes(tname)).map(t=>[t.id,t.name]);
+  }
+  return TECH[tname]||[];
+}
 function renderMitre(){
-  const counts={};DATA.forEach(d=>(d.mitre||[]).forEach(t=>counts[t]=(counts[t]||0)+1));
+  const counts={};
+  const live=FEED_META&&Array.isArray(FEED_META.mitre_techniques)&&FEED_META.mitre_techniques.length;
+  document.getElementById('mSrc').textContent=live?`Full Enterprise ATT&CK list from the collector (${FEED_META.mitre_techniques.length} techniques).`:'Representative subset built in. Run the collector with --mitre for the full matrix.';DATA.forEach(d=>(d.mitre||[]).forEach(t=>counts[t]=(counts[t]||0)+1));
   const mx=document.getElementById('matrix');
   mx.innerHTML=TACTICS.map(([tid,tname])=>{
-    const techs=TECH[tname]||[];
+    const techs=techFor(tname);
     return `<div><div class="tac ${mitreFilter===tname?'on':''}" onclick="mitreSel('${tname}')" title="${tid}">${tname}</div>`+
       techs.map(([id,n])=>{const c=counts[id]||0;return `<div class="cell ${c>0?'hot':''}" onclick="mitreTech('${id}','${esc(n)}')"><div class="id">${id}</div><div class="nm">${esc(n)}</div><div class="n">${c} item${c===1?'':'s'}</div></div>`}).join('')+`</div>`;
   }).join('');
   if(mitreFilter) mitreSel(mitreFilter,true);
 }
 function mitreSel(tname){mitreFilter=tname;renderMitre();document.getElementById('mTitle').textContent='Techniques in '+tname;
-  const ids=(TECH[tname]||[]).map(x=>x[0]);
+  const ids=techFor(tname).map(x=>x[0]);
   const rows=sorted(DATA.filter(d=>(d.mitre||[]).some(m=>ids.includes(m))));
   document.getElementById('mList').innerHTML=rows.length?`<div class="tbl-wrap" style="max-height:420px"><table>${HEAD}<tbody>${rows.slice(0,200).map(itemRow).join('')}</tbody></table></div>`:'<div class="empty">No items mapped to this tactic.</div>';
 }
@@ -765,14 +778,20 @@ function renderLeaks(){
     <div class="note" style="margin-top:4px">${esc(d.source)} · ${esc(d.region)} · ${esc(d.sector)}</div></div>`).join('')||'<div class="empty">No leak items.</div>';
 }
 function renderSources(){
-  const status={};(FEED_META&&FEED_META.sources||[]).forEach(s=>status[s.name]=s);
+  const meta=(FEED_META&&FEED_META.sources)||[];
+  const status={};meta.forEach(x=>status[x.name]=x);
+  const okN=meta.filter(x=>x.status==='ok').length;
+  document.getElementById('srcHealth').innerHTML=FEED_META
+    ?`<i class="fa-solid fa-heart-pulse"></i>&nbsp; ${okN} of ${meta.length} sources healthy in the last collector run · generated ${esc(new Date(FEED_META.generated_at).toLocaleString())}`
+    :'No collector run loaded. Place threatintflux_feed.json beside index.html, or import it in Settings.';
   document.getElementById('srcGrid').innerHTML=SOURCES.map(s=>{
     const st=status[s.name];
-    const live=st?(st.status==='ok'?`<span class="chip t-verified">Online · ${st.count} items</span>`:`<span class="chip t-untrusted">Error</span>`):`<span class="chip t-unverified">Not collected</span>`;
+    const live=st?(st.status==='ok'?`<span class="chip t-verified">Online · ${st.count?st.count+' items':'no items'}</span>`:`<span class="chip t-untrusted">Error</span>`):`<span class="chip t-unverified">Not collected</span>`;
+    const err=st&&st.status==='error'?`<p class="note" style="margin-top:8px;word-break:break-word">${esc(st.error||'Unknown error')}</p>`:'';
     return `<div class="src"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h4>${esc(s.name)}</h4>${tierChip(s.tier)}</div>
       <div class="tag" style="display:inline-block;margin-top:4px">${esc(s.kind)}</div>
       <p>${esc(s.desc)}</p>
-      <div class="row">${live}</div>
+      <div class="row">${live}</div>${err}
       <div class="row"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open source</a></div></div>`}).join('');
 }
 
@@ -786,7 +805,7 @@ async function refreshLive(){
     if(!r.ok) throw new Error('HTTP '+r.status);
     const feed=await r.json();
     if(!feed.items) throw new Error('Invalid feed file');
-    DATA=feed.items;FEED_META={generated_at:feed.generated_at,sources:feed.sources||[]};save();
+    DATA=feed.items;FEED_META={generated_at:feed.generated_at,sources:feed.sources||[],mitre_techniques:feed.mitre_techniques||null};save();
     afterLoad();toast(`<i class="fa-solid fa-circle-check" style="color:var(--verified)"></i>&nbsp; Loaded ${DATA.length} items from threatintflux_feed.json`);
   }catch(e){
     toast(`<i class="fa-solid fa-triangle-exclamation" style="color:var(--unverified)"></i>&nbsp; No live feed found (${esc(e.message)}). Run the collector, then place threatintflux_feed.json beside this file or import it in Settings.`);
@@ -825,7 +844,7 @@ function importFile(e){
       const map=new Map(DATA.filter(d=>!d.synthetic).map(d=>[d.id,d]));
       items.forEach(i=>{if(i&&i.id)map.set(i.id,i)});
       DATA=[...map.values()].filter(x=>!x.synthetic||DATA.some(d=>d.synthetic));
-      if(o.generated_at) FEED_META={generated_at:o.generated_at,sources:o.sources||[]};
+      if(o.generated_at) FEED_META={generated_at:o.generated_at,sources:o.sources||[],mitre_techniques:o.mitre_techniques||null};
       save();afterLoad();toast(`Imported ${items.length} items.`);
     }catch(err){toast('Import failed: '+esc(err.message))}
   };
@@ -930,7 +949,7 @@ function buildReport(){
   renderSources();
   // try to pick up collector output automatically
   fetch('threatintflux_feed.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(f=>{
-    if(f&&Array.isArray(f.items)&&f.items.length){DATA=f.items;FEED_META={generated_at:f.generated_at,sources:f.sources||[]};save();afterLoad();toast('Live feed detected and loaded.')}
+    if(f&&Array.isArray(f.items)&&f.items.length){DATA=f.items;FEED_META={generated_at:f.generated_at,sources:f.sources||[],mitre_techniques:f.mitre_techniques||null};save();afterLoad();toast('Live feed detected and loaded.')}
   }).catch(()=>{});
 })();
 </script>

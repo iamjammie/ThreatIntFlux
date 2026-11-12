@@ -11,6 +11,7 @@ Checks:
   * MITRE technique ids look like T1234 or T1234.567
   * source status is consistent with the items it produced
   * a feed that claims to be live contains no synthetic items
+  * optional 'mitre_techniques' (full ATT&CK list for the matrix): ids, names and tactics well formed
 
 Exit code 0 when valid, 1 when any error is found.
 
@@ -148,6 +149,23 @@ def validate(feed):
         errors.append(f"feed is marked live but contains {synthetic_count} synthetic items")
     if synthetic_count:
         warnings.append(f"{synthetic_count} synthetic (SAMPLE) items present")
+
+    techs = feed.get("mitre_techniques")
+    if techs is not None:
+        if not isinstance(techs, list):
+            errors.append("'mitre_techniques' must be a list when present")
+        else:
+            for j, t in enumerate(techs):
+                where = f"mitre_techniques[{j}]"
+                if not isinstance(t, dict):
+                    errors.append(f"{where}: must be an object")
+                    continue
+                if not TECH_RE.match(str(t.get("id", ""))):
+                    errors.append(f"{where}: malformed technique id '{t.get('id')}'")
+                if not isinstance(t.get("name"), str) or not t.get("name"):
+                    errors.append(f"{where}: missing name")
+                if not isinstance(t.get("tactics"), list):
+                    errors.append(f"{where}: 'tactics' must be a list")
 
     if not items:
         warnings.append("feed has no items")
