@@ -1,422 +1,466 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ThreatIntFlux - The Edge Before Engagement</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>ThreatIntFlux</title>
 <style>
-:root{
-  --bg:#050912; --bg2:#0a1322; --panel:#0c1729; --panel2:#101e35; --line:#17294a; --line2:#1f3660;
-  --txt:#e6edf9; --txt2:#9fb0cc; --txt3:#63779a;
-  --accent:#22d3ee; --accent2:#3b82f6; --glow:rgba(34,211,238,.18);
-  --crit:#ff3b5c; --high:#ff8a3d; --med:#f5c542; --low:#34d399;
-  --verified:#10b981; --trusted:#38bdf8; --unverified:#f59e0b; --untrusted:#ef4444;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{font-family:Inter,system-ui,sans-serif;background:radial-gradient(1200px 600px at 80% -10%,#0d2a4d 0%,transparent 60%),var(--bg);color:var(--txt);font-size:14px;overflow:hidden}
-.mono{font-family:'JetBrains Mono',monospace}
-::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px}
-
-/* layout */
-.app{display:grid;grid-template-columns:248px 1fr;height:100vh}
-aside{background:linear-gradient(180deg,#07101f,#050912);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto}
-.brand{display:flex;gap:12px;align-items:center;padding:20px 18px;border-bottom:1px solid var(--line)}
-.brand h1{font-size:17px;font-weight:800;letter-spacing:.2px}
-.brand h1 span{color:var(--accent)}
-.brand small{display:block;font-size:10px;letter-spacing:1.6px;color:var(--txt3);text-transform:uppercase;margin-top:3px}
-.nav{padding:14px 10px}
-.nav h4{font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:var(--txt3);padding:12px 10px 6px;font-weight:700}
-.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:8px;color:var(--txt2);cursor:pointer;text-decoration:none;font-weight:500;border:1px solid transparent;transition:.15s}
-.nav a i{width:16px;text-align:center;color:var(--txt3)}
-.nav a:hover{background:#0f1e36;color:var(--txt)}
-.nav a.on{background:linear-gradient(90deg,rgba(34,211,238,.14),rgba(59,130,246,.05));color:var(--txt);border-color:rgba(34,211,238,.25)}
-.nav a.on i{color:var(--accent)}
-.nav .count{margin-left:auto;font-size:11px;background:#0f2a44;color:var(--accent);padding:1px 7px;border-radius:10px}
-.side-foot{margin-top:auto;padding:14px 18px;border-top:1px solid var(--line);font-size:11px;color:var(--txt3)}
-
-main{display:flex;flex-direction:column;min-width:0;height:100vh}
-.topbar{display:flex;align-items:center;gap:14px;padding:12px 24px;border-bottom:1px solid var(--line);background:rgba(7,16,31,.8);backdrop-filter:blur(12px)}
-.cmd{flex:1;max-width:620px;display:flex;align-items:center;gap:10px;background:#081224;border:1px solid var(--line2);border-radius:10px;padding:9px 14px}
-.cmd:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--glow)}
-.cmd input{flex:1;background:none;border:0;outline:0;color:var(--txt);font:inherit}
-.cmd kbd{font:500 11px 'JetBrains Mono';color:var(--txt3);border:1px solid var(--line2);border-radius:5px;padding:1px 6px}
-.pill{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid var(--line2);font-size:12px;color:var(--txt2);background:#081224}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--low);box-shadow:0 0 10px var(--low);animation:p 2s infinite}
-.dot.warn{background:var(--unverified);box-shadow:0 0 10px var(--unverified)}
-@keyframes p{50%{opacity:.4}}
-.iconbtn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line2);background:#081224;color:var(--accent);cursor:pointer;display:grid;place-items:center}
-.iconbtn:hover{border-color:var(--accent);background:#0c1d33}
-
-.content{flex:1;overflow-y:auto;padding:26px 28px 40px}
-.head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
-.head h2{font-size:24px;font-weight:800;letter-spacing:-.3px}
-.head p{color:var(--txt2);margin-top:4px;font-size:13px}
-.view{display:none}.view.on{display:block;animation:f .3s ease}
-@keyframes f{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-
-.banner{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-radius:10px;border:1px solid rgba(245,158,11,.35);background:rgba(245,158,11,.07);color:#fcd9a0;font-size:12.5px;margin-bottom:20px}
-.banner.ok{border-color:rgba(16,185,129,.35);background:rgba(16,185,129,.07);color:#a7f3d0}
-.banner i{margin-top:2px}
-
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:20px}
-.kpi{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:16px 18px;position:relative;overflow:hidden}
-.kpi::after{content:"";position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,var(--glow),transparent 70%)}
-.kpi .l{font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt3);font-weight:700}
-.kpi .v{font:700 30px 'JetBrains Mono';margin-top:6px}
-.kpi .s{font-size:12px;color:var(--txt2);margin-top:4px}
-
-.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-bottom:16px}
-.c4{grid-column:span 4}.c6{grid-column:span 6}.c8{grid-column:span 8}.c12{grid-column:span 12}
-@media(max-width:1200px){.c4,.c6,.c8{grid-column:span 12}}
-.panel{background:linear-gradient(170deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:18px}
-.panel-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
-.panel-h h3{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt2);font-weight:700;display:flex;gap:8px;align-items:center}
-.panel-h h3 i{color:var(--accent)}
-.chart{position:relative;height:250px}
-
-.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:6px;font:600 11px Inter;letter-spacing:.3px;text-transform:uppercase;border:1px solid transparent;white-space:nowrap}
-.sev-critical{color:var(--crit);background:rgba(255,59,92,.12);border-color:rgba(255,59,92,.3)}
-.sev-high{color:var(--high);background:rgba(255,138,61,.12);border-color:rgba(255,138,61,.3)}
-.sev-medium{color:var(--med);background:rgba(245,197,66,.1);border-color:rgba(245,197,66,.28)}
-.sev-low{color:var(--low);background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.28)}
-.t-verified{color:var(--verified);background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3)}
-.t-trusted{color:var(--trusted);background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.3)}
-.t-unverified{color:var(--unverified);background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3)}
-.t-untrusted{color:var(--untrusted);background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3)}
-.tag{font-size:11px;color:var(--txt2);background:#0a1729;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-family:'JetBrains Mono'}
-.syn{font-size:10px;color:var(--unverified);border:1px dashed rgba(245,158,11,.5);border-radius:5px;padding:1px 6px;font-weight:600;letter-spacing:.5px}
-
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
-.inp,.sel{background:#081224;border:1px solid var(--line2);color:var(--txt);border-radius:9px;padding:8px 11px;font:inherit;outline:0}
-.inp:focus,.sel:focus{border-color:var(--accent)}
-.btn{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#04101d;border:0;border-radius:9px;padding:9px 14px;font:700 12px Inter;letter-spacing:.4px;cursor:pointer;text-transform:uppercase}
-.btn:hover{filter:brightness(1.1);box-shadow:0 8px 24px var(--glow)}
-.btn.ghost{background:#081224;color:var(--txt);border:1px solid var(--line2);text-transform:none;font-weight:600;letter-spacing:0}
-.btn.ghost:hover{border-color:var(--accent)}
-.btn.danger{background:#2a0f17;color:#ff8a9b;border:1px solid #5a1f2d}
-
-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
-th{position:sticky;top:0;background:#0b1830;color:var(--txt3);text-align:left;font:700 10.5px Inter;letter-spacing:1.1px;text-transform:uppercase;padding:11px 12px;border-bottom:1px solid var(--line2)}
-td{padding:11px 12px;border-bottom:1px solid #12223d;color:var(--txt2);vertical-align:middle}
-tbody tr{cursor:pointer;transition:background .12s}
-tbody tr:hover{background:#0e1f38}
-td.t{color:var(--txt);font-weight:600}
-.tbl-wrap{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:12px}
-
-.matrix{display:grid;grid-template-columns:repeat(14,minmax(128px,1fr));gap:6px;overflow-x:auto;padding-bottom:6px}
-.tac{background:#0b1830;border:1px solid var(--line2);border-radius:8px 8px 4px 4px;padding:8px;font:700 10.5px Inter;letter-spacing:.6px;text-transform:uppercase;color:var(--accent);text-align:center;min-height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.tac.on{background:rgba(34,211,238,.18)}
-.cell{background:#0a1526;border:1px solid #14284a;border-radius:6px;padding:7px;margin-top:5px;cursor:pointer;min-height:52px;transition:.12s}
-.cell:hover{border-color:var(--accent);transform:translateY(-1px)}
-.cell .id{font:600 10.5px 'JetBrains Mono';color:var(--accent2)}
-.cell .nm{font-size:11px;color:var(--txt2);line-height:1.3;margin-top:2px}
-.cell .n{font:700 10px 'JetBrains Mono';color:var(--low);margin-top:4px}
-.cell.hot{border-color:rgba(255,59,92,.55);background:linear-gradient(180deg,rgba(255,59,92,.14),#0a1526)}
-.cell.hot .n{color:var(--crit)}
-.heat{display:flex;gap:6px;align-items:center;font-size:11px;color:var(--txt3);margin-top:12px}
-.heat i{display:inline-block;width:26px;height:10px;border-radius:3px}
-
-.src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
-.src{background:linear-gradient(170deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:16px}
-.src h4{font-size:14px;font-weight:700;margin-bottom:6px}
-.src p{font-size:12px;color:var(--txt2);line-height:1.5;margin:8px 0}
-.src .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
-.src a{color:var(--accent);font-size:12px;text-decoration:none}
-.src a:hover{text-decoration:underline}
-
-.actor{background:linear-gradient(170deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer}
-.actor:hover{border-color:var(--accent)}
-.actor h4{font:700 14px 'JetBrains Mono';color:var(--txt)}
-.bar{height:6px;background:#0a1526;border-radius:4px;overflow:hidden;margin-top:8px}
-.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent))}
-
-.sec-list{display:flex;flex-direction:column;gap:10px}
-.leak{background:#0a1526;border:1px solid var(--line);border-left:3px solid var(--crit);border-radius:10px;padding:12px 14px}
-
-.field{display:grid;gap:6px;margin-bottom:14px}
-.field label{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--txt3);font-weight:700}
-.note{font-size:12px;color:var(--txt3);line-height:1.6}
-.empty{padding:40px;text-align:center;color:var(--txt3)}
-
-/* drawer */
-.drawer{position:fixed;top:0;right:-560px;width:520px;max-width:100%;height:100vh;background:linear-gradient(180deg,#0b1830,#070f1e);border-left:1px solid var(--line2);box-shadow:-30px 0 80px rgba(0,0,0,.6);transition:right .3s ease;z-index:50;display:flex;flex-direction:column}
-.drawer.on{right:0}
-.drawer-h{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line)}
-.drawer-h h3{font:700 15px 'JetBrains Mono';color:var(--accent)}
-.drawer-b{padding:22px;overflow-y:auto;flex:1}
-.kv{display:grid;grid-template-columns:130px 1fr;gap:10px 14px;font-size:13px}
-.kv div:nth-child(odd){color:var(--txt3);font-weight:600}
-.kv div:nth-child(even){color:var(--txt);word-break:break-word}
-.scrim{position:fixed;inset:0;background:rgba(2,6,14,.6);opacity:0;pointer-events:none;transition:.3s;z-index:40}
-.scrim.on{opacity:1;pointer-events:auto}
-
-/* toast */
-.toast{position:fixed;bottom:22px;right:22px;background:#0b1830;border:1px solid var(--accent);color:var(--txt);padding:12px 16px;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5);transform:translateY(120px);opacity:0;transition:.3s;z-index:90;max-width:420px}
-.toast.on{transform:none;opacity:1}
-
-@media(max-width:900px){.app{grid-template-columns:1fr}aside{display:none}}
+  :root{
+    --bg:#05080f; --bg2:#0a1120; --panel:#0e1729; --panel2:#132038; --line:#1d2b44; --line2:#2a3c5e;
+    --txt:#e7eefb; --txt2:#b3c2da; --muted:#7f92b3;
+    --accent:#22d3ee; --accent2:#818cf8; --ok:#34d399; --warn:#fbbf24; --err:#f43f5e; --orange:#fb923c;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg:#f2f5fb; --bg2:#e9EEf7; --panel:#ffffff; --panel2:#f5f8fd; --line:#d7e0ee; --line2:#c4d0e3;
+      --txt:#0f1b2d; --txt2:#334766; --muted:#63789b; --accent:#0e7490; --accent2:#4338ca;
+      --ok:#047857; --warn:#b45309; --err:#be123c; --orange:#c2410c; --shadow:0 8px 24px rgba(15,27,45,.08);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  button,input,select{font:inherit;color:inherit}
+  button{background:var(--accent);color:#04212a;border:0;border-radius:9px;padding:9px 14px;font-weight:600;cursor:pointer}
+  button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line2);font-weight:500}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  input,select,textarea{background:var(--panel2);border:1px solid var(--line2);border-radius:9px;padding:9px 11px;width:100%}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+  .side{background:linear-gradient(180deg,var(--bg2),var(--bg));border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh;overflow:auto}
+  .brand{font-weight:800;font-size:19px;letter-spacing:.2px;padding:4px 8px 2px}
+  .brand span{color:var(--accent)}
+  .tagline{color:var(--muted);font-size:12px;padding:0 8px 14px}
+  .nav a{display:flex;align-items:center;gap:10px;color:var(--txt2);padding:9px 10px;border-radius:9px;font-size:13.5px;cursor:pointer}
+  .nav a:hover{background:var(--panel2);color:var(--txt)}
+  .nav a.on{background:linear-gradient(90deg,rgba(34,211,238,.18),rgba(129,140,248,.10));color:var(--txt);box-shadow:inset 2px 0 0 var(--accent)}
+  .nav .ic{width:18px;text-align:center;color:var(--accent);font-size:13px}
+  .side .box{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:12px;color:var(--txt2)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--muted)}
+  .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)} .dot.off{background:var(--warn)}
+  main{padding:18px 26px 60px;min-width:0}
+  .topbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+  .topbar input{flex:1;min-width:200px;max-width:520px}
+  .origin{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--line2);color:var(--txt2);background:var(--panel)}
+  .view{display:none} .view.on{display:block;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.2px} h2{font-size:15px;margin:0 0 10px;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;max-width:780px}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+  .panel{background:linear-gradient(170deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow);min-width:0}
+  .panel-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+  .kpi{padding:14px}
+  .kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+  .kpi .v{font-size:26px;font-weight:750;margin-top:4px;letter-spacing:.2px}
+  .kpi .s{color:var(--txt2);font-size:12px;margin-top:2px}
+  .bar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:8px}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;border:1px solid var(--line2);color:var(--txt2);white-space:nowrap}
+  .sev-critical{background:rgba(244,63,94,.16);border-color:rgba(244,63,94,.55);color:#ff8fa3}
+  .sev-high{background:rgba(251,146,60,.14);border-color:rgba(251,146,60,.5);color:#ffb37a}
+  .sev-medium{background:rgba(250,204,21,.12);border-color:rgba(250,204,21,.45);color:#fde68a}
+  .sev-low{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.45);color:#93c5fd}
+  .t-verified{background:rgba(52,211,153,.14);border-color:rgba(52,211,153,.5);color:#6ee7b7}
+  .t-trusted{background:rgba(34,211,238,.12);border-color:rgba(34,211,238,.45);color:#67e8f9}
+  .t-unverified{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.45);color:#fcd34d}
+  .t-untrusted{background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.4);color:#cbd5e1}
+  .tag{display:inline-block;padding:1px 7px;border-radius:6px;background:var(--panel);border:1px solid var(--line2);color:var(--txt2);font:12px ui-monospace,Menlo,Consolas,monospace;margin:2px 3px 2px 0}
+  .syn{display:inline-block;margin-left:6px;padding:0 6px;border-radius:5px;font-size:10.5px;font-weight:700;letter-spacing:.6px;background:rgba(244,63,94,.16);color:#ff8fa3;border:1px solid rgba(244,63,94,.45)}
+  .tbl-wrap{overflow:auto;max-height:520px;border-radius:10px;border:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;z-index:1}
+  tr[data-open],tr[data-apt],tr[data-ioa]{cursor:pointer} tbody tr:hover{background:rgba(34,211,238,.05)}
+  td.t{max-width:420px}
+  .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+  .muted{color:var(--muted)} .small{font-size:12px}
+  .empty{color:var(--muted);padding:22px;text-align:center}
+  .narr{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+  .narr li{padding:11px 13px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--accent)}
+  .recs{display:grid;gap:10px;margin:0;padding:0;list-style:none}
+  .recs li{padding:11px 13px;border-radius:10px;border:1px solid var(--line);background:var(--panel2)}
+  .recs b{color:var(--txt)}
+  .pri-1{border-left:3px solid var(--err)!important}.pri-2{border-left:3px solid var(--orange)!important}.pri-3{border-left:3px solid var(--warn)!important}
+  .matrix{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .tac{font-weight:700;font-size:12px;padding:8px;border-radius:9px;background:var(--panel2);border:1px solid var(--line2);cursor:pointer;margin-bottom:6px;color:var(--txt)}
+  .tac.on{outline:2px solid var(--accent)}
+  .cell{padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg2);margin-bottom:6px;cursor:pointer;font-size:12px}
+  .cell.hot{border-color:rgba(244,63,94,.6);background:rgba(244,63,94,.10)}
+  .cell .id{font:600 11px ui-monospace,Menlo,monospace;color:var(--accent)} .cell .nm{color:var(--txt);margin-top:2px}
+  .cell .n{color:var(--muted);font-size:11px;margin-top:2px}
+  .actor{padding:14px;border-radius:14px;background:linear-gradient(170deg,var(--panel2),var(--panel));border:1px solid var(--line);cursor:pointer}
+  .actor:hover{border-color:var(--accent)}
+  .actor h4{margin:0;font-size:15px}
+  .ioa-cov{display:flex;gap:6px;flex-wrap:wrap}
+  .ioa-cov span{width:14px;height:14px;border-radius:4px;background:var(--line)}
+  .ioa-cov span.hit{background:var(--ok)}
+  .drawer{position:fixed;right:-560px;top:0;bottom:0;width:min(540px,96vw);background:var(--panel);border-left:1px solid var(--line2);box-shadow:-20px 0 50px rgba(0,0,0,.4);padding:20px;overflow:auto;transition:right .28s ease;z-index:20}
+  .drawer.on{right:0}
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:15}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .dl{display:grid;grid-template-columns:130px 1fr;gap:8px 12px;font-size:13px;margin:10px 0}
+  .dl div:nth-child(odd){color:var(--muted)}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel2);border:1px solid var(--line2);box-shadow:var(--shadow);border-radius:12px;padding:11px 16px;font-size:13px;opacity:0;pointer-events:none;transition:all .25s;z-index:30;max-width:92vw}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .field{display:grid;gap:6px;margin-bottom:12px;font-size:13px;color:var(--txt2)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+  .src{background:linear-gradient(170deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:12px;padding:14px}
+  .src h4{margin:0;font-size:13.5px}
+  .src p{margin:8px 0;color:var(--txt2);font-size:12.5px}
+  .foot{margin-top:24px;color:var(--muted);font-size:12px;border-top:1px solid var(--line);padding-top:12px}
+  .svgbox{width:100%}
+  svg{display:block;width:100%;height:auto;overflow:visible}
+  svg .grid{stroke:var(--line);stroke-width:1}
+  svg .ax{fill:var(--muted);font-size:11px;font-family:system-ui,sans-serif}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--txt2);margin-top:8px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .warnbox{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;padding:12px 14px;color:var(--txt2);font-size:13px}
+  .side-mobile{display:none}
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr}
+    .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:12px}
+    .nav{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
+    .nav a{white-space:nowrap}
+    .side .box{display:none}
+    main{padding:14px 16px 60px}
+    .c3{grid-column:span 6}
+    .c4,.c5,.c6,.c7,.c8{grid-column:span 12}
+    .kpi .v{font-size:22px}
+  }
+  @media print{
+    .side,.topbar,.drawer,.scrim,.toast,.no-print{display:none!important}
+    .app{display:block} main{padding:0}
+    body{background:#fff;color:#000} .panel{box-shadow:none;border-color:#bbb;background:#fff}
+  }
 </style>
 </head>
 <body>
 <div class="app">
-
-<!-- ============ SIDEBAR ============ -->
-<aside>
-  <div class="brand">
-    <svg width="42" height="42" viewBox="0 0 64 64" aria-label="ThreatIntFlux logo">
-      <defs>
-        <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
-        <linearGradient id="lg2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#0c1729"/><stop offset="1" stop-color="#16315a"/></linearGradient>
-      </defs>
-      <path d="M32 3 L57 17.5 L57 46.5 L32 61 L7 46.5 L7 17.5 Z" fill="url(#lg2)" stroke="url(#lg)" stroke-width="2.5"/>
-      <path d="M14 36 C22 26, 26 44, 32 32 S44 20, 50 28" fill="none" stroke="url(#lg)" stroke-width="3.2" stroke-linecap="round"/>
-      <path d="M14 46 C22 40, 26 52, 32 44 S44 36, 50 40" fill="none" stroke="#22d3ee" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/>
-      <circle cx="32" cy="32" r="3.2" fill="#22d3ee"/>
-    </svg>
-    <h1>ThreatInt<span>Flux</span><small>The Edge Before Engagement</small></h1>
-  </div>
-
-  <nav class="nav">
-    <h4>Operations</h4>
-    <a data-v="overview" class="on"><i class="fa-solid fa-gauge-high"></i>Overview</a>
-    <a data-v="feed"><i class="fa-solid fa-satellite-dish"></i>Intel Feed<span class="count" id="nFeed">0</span></a>
-    <a data-v="search"><i class="fa-solid fa-magnifying-glass"></i>Advanced Search</a>
-    <h4>Analysis</h4>
-    <a data-v="mitre"><i class="fa-solid fa-diagram-project"></i>MITRE ATT&amp;CK</a>
-    <a data-v="actors"><i class="fa-solid fa-user-secret"></i>Threat Actors<span class="count" id="nAct">0</span></a>
-    <a data-v="vulns"><i class="fa-solid fa-bug"></i>Vulnerabilities<span class="count" id="nVuln">0</span></a>
-    <a data-v="iocs"><i class="fa-solid fa-fingerprint"></i>Indicators (IOCs)<span class="count" id="nIoc">0</span></a>
-    <a data-v="darkweb"><i class="fa-solid fa-user-ninja"></i>Dark Web &amp; Leaks<span class="count" id="nLeak">0</span></a>
-    <h4>Governance</h4>
-    <a data-v="sources"><i class="fa-solid fa-shield-halved"></i>Source Verification</a>
-    <a data-v="reports"><i class="fa-solid fa-file-lines"></i>Executive Reports</a>
-    <a data-v="settings"><i class="fa-solid fa-sliders"></i>Settings &amp; Data</a>
-  </nav>
-
-  <div class="side-foot">
-    <div id="dsLabel" class="mono">Dataset: loading</div>
-    <div style="margin-top:4px">Analyst-facing. Verify before action.</div>
-  </div>
-</aside>
-
-<!-- ============ MAIN ============ -->
-<main>
-  <div class="topbar">
-    <div class="cmd">
-      <i class="fa-solid fa-magnifying-glass" style="color:var(--txt3)"></i>
-      <input id="qGlobal" placeholder="Search actor, CVE, IOC, sector... try  severity:critical tier:verified sector:banking">
-      <kbd>/</kbd>
+  <aside class="side">
+    <div class="brand">ThreatInt<span>Flux</span></div>
+    <div class="tagline">The Edge Before Engagement</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="box">
+      <div><span class="dot" id="compDot"></span><span id="compTxt">Checking local companion…</span></div>
+      <div class="muted" style="margin-top:6px" id="compHint"></div>
     </div>
-    <div class="pill"><span class="dot" id="liveDot"></span><span id="liveTxt">Dataset ready</span></div>
-    <button class="iconbtn" title="Refresh from live sources" onclick="refreshLive()"><i class="fa-solid fa-rotate"></i></button>
-    <button class="iconbtn" title="Settings" onclick="go('settings')"><i class="fa-solid fa-gear"></i></button>
-  </div>
+  </aside>
 
-  <div class="content">
+  <main>
+    <div class="topbar">
+      <input id="globalQ" placeholder="Search intel, IOCs, actors, techniques…  (try  severity:critical  or  -sample)" autocomplete="off">
+      <span class="origin" id="originChip">—</span>
+      <button class="ghost" id="syncTop" onclick="syncLive()">Sync live</button>
+    </div>
 
-    <!-- OVERVIEW -->
-    <section class="view on" id="v-overview">
-      <div class="head">
-        <div><h2>Threat Overview</h2><p>Consolidated picture across vetted feeds, vulnerabilities, actors and exposure</p></div>
-        <div style="display:flex;gap:10px"><button class="btn ghost" onclick="go('reports')"><i class="fa-solid fa-file-arrow-down"></i> Executive report</button></div>
-      </div>
-      <div id="bannerOv"></div>
-      <div class="kpis">
-        <div class="kpi"><div class="l">Intel items</div><div class="v" id="k1">0</div><div class="s" id="k1s"></div></div>
-        <div class="kpi"><div class="l">Critical / High</div><div class="v" id="k2" style="color:var(--crit)">0</div><div class="s" id="k2s"></div></div>
-        <div class="kpi"><div class="l">Verified share</div><div class="v" id="k3" style="color:var(--verified)">0%</div><div class="s" id="k3s"></div></div>
-        <div class="kpi"><div class="l">Last 24 h</div><div class="v" id="k4" style="color:var(--accent)">0</div><div class="s" id="k4s"></div></div>
-        <div class="kpi"><div class="l">Sources online</div><div class="v" id="k5">0</div><div class="s" id="k5s"></div></div>
-      </div>
+    <!-- ============================ EXECUTIVE SUMMARY ============================ -->
+    <section class="view" id="v-summary">
+      <div class="head"><div><h1>Executive summary</h1><div class="sub" id="sumSub"></div></div></div>
       <div class="grid">
-        <div class="panel c8"><div class="panel-h"><h3><i class="fa-solid fa-chart-area"></i>Intel volume, 30 days</h3></div><div class="chart"><canvas id="chTimeline"></canvas></div></div>
-        <div class="panel c4"><div class="panel-h"><h3><i class="fa-solid fa-gauge"></i>Severity mix</h3></div><div class="chart"><canvas id="chSev"></canvas></div></div>
-        <div class="panel c6"><div class="panel-h"><h3><i class="fa-solid fa-building-shield"></i>Targeted sectors</h3></div><div class="chart"><canvas id="chSector"></canvas></div></div>
-        <div class="panel c6"><div class="panel-h"><h3><i class="fa-solid fa-scale-balanced"></i>Source trust tiers</h3></div><div class="chart"><canvas id="chTier"></canvas></div></div>
-        <div class="panel c12"><div class="panel-h"><h3><i class="fa-solid fa-fire"></i>Priority items</h3><button class="btn ghost" onclick="go('feed');setFilter({severity:'critical'})">View all critical</button></div><div id="priority"></div></div>
+        <div class="panel kpi c3"><div class="l">Intel items</div><div class="v" id="k_items">0</div><div class="s" id="k_items_s"></div></div>
+        <div class="panel kpi c3"><div class="l">Critical</div><div class="v" id="k_crit">0</div><div class="s" id="k_crit_s"></div></div>
+        <div class="panel kpi c3"><div class="l">Indicators (IOCs)</div><div class="v" id="k_iocs">0</div><div class="s" id="k_iocs_s"></div></div>
+        <div class="panel kpi c3"><div class="l">Threat index</div><div class="v" id="k_index">0</div><div class="s">0–100, last 7 days (severity × trust)</div><div class="bar"><i id="k_index_bar" style="width:0%"></i></div></div>
+        <div class="panel c7"><div class="panel-h"><h2>Key findings</h2></div><ul class="narr" id="execNarr"></ul></div>
+        <div class="panel c5"><div class="panel-h"><h2>Severity mix</h2></div><div id="chSev"></div><div class="legend" id="lgSev"></div></div>
+        <div class="panel c12"><div class="panel-h"><h2>Recommended actions</h2><span class="muted small">derived from the data above; review before acting</span></div><ol class="recs" id="recs"></ol></div>
+        <div class="panel c7"><div class="panel-h"><h2>Highest-priority items</h2><a class="small" href="#" onclick="go('feed');return false">all items →</a></div><div class="tbl-wrap" style="max-height:380px"><table id="topT"></table></div></div>
+        <div class="panel c5"><div class="panel-h"><h2>Trust tiers</h2></div><div id="chTier"></div></div>
       </div>
     </section>
 
-    <!-- FEED -->
+    <!-- ============================ THREAT FEED ============================ -->
     <section class="view" id="v-feed">
-      <div class="head"><div><h2>Intel Feed</h2><p>All ingested items, filterable by severity, trust tier, type, sector and region</p></div></div>
-      <div class="toolbar">
-        <input class="inp" id="fText" placeholder="Filter text..." style="min-width:220px" oninput="renderFeed()">
-        <select class="sel" id="fSev" onchange="renderFeed()"><option value="">All severity</option><option>critical</option><option>high</option><option>medium</option><option>low</option></select>
-        <select class="sel" id="fTier" onchange="renderFeed()"><option value="">All trust tiers</option><option value="verified">Verified</option><option value="trusted">Trusted</option><option value="unverified">Unverified</option><option value="untrusted">Untrusted</option></select>
-        <select class="sel" id="fType" onchange="renderFeed()"><option value="">All types</option></select>
-        <select class="sel" id="fSector" onchange="renderFeed()"><option value="">All sectors</option></select>
-        <select class="sel" id="fRegion" onchange="renderFeed()"><option value="">All regions</option></select>
-        <span class="note" id="fCount" style="margin-left:auto"></span>
-      </div>
-      <div class="tbl-wrap"><table><thead><tr><th>Severity</th><th>Title</th><th>Type</th><th>Trust</th><th>Source</th><th>Sector</th><th>Region</th><th>Date</th></tr></thead><tbody id="feedBody"></tbody></table></div>
-    </section>
-
-    <!-- SEARCH -->
-    <section class="view" id="v-search">
-      <div class="head"><div><h2>Advanced Search</h2><p>Combine free text with field filters. Example: <span class="mono">actor:ACTOR-A07 severity:critical after:2026-10-01 -phishing</span></p></div></div>
-      <div class="panel" style="margin-bottom:16px">
-        <div class="toolbar" style="margin:0">
-          <input class="inp" id="sQuery" placeholder="severity:critical tier:verified sector:government type:vuln ..." style="flex:1;min-width:300px" onkeydown="if(event.key==='Enter')runSearch()">
-          <button class="btn" onclick="runSearch()"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+      <div class="head"><div><h1>Threat feed</h1><div class="sub">Every item carries a trust tier. Use the search syntax above for field filters, and <span class="mono">-term</span> to exclude.</div></div></div>
+      <div class="panel">
+        <div class="grid" style="grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+          <input id="fq" placeholder="Search…" oninput="renderFeed()">
+          <select id="fSev" onchange="renderFeed()"><option value="">Any severity</option><option>critical</option><option>high</option><option>medium</option><option>low</option></select>
+          <select id="fTier" onchange="renderFeed()"><option value="">Any trust tier</option><option value="verified">Verified</option><option value="trusted">Trusted</option><option value="unverified">Unverified</option><option value="untrusted">Untrusted</option></select>
+          <select id="fType" onchange="renderFeed()"><option value="">Any type</option><option>vuln</option><option>ioc</option><option>malware</option><option>actor</option><option>leak</option><option>campaign</option><option>advisory</option></select>
         </div>
-        <div class="note" style="margin-top:10px">Fields: severity, tier, type, sector, region, actor, source, mitre, after, before. Prefix a term with <span class="mono">-</span> to exclude it.</div>
+        <div class="tbl-wrap"><table id="feedT"></table></div>
+        <div class="small muted" style="margin-top:8px" id="feedCount"></div>
       </div>
-      <div id="sResults"></div>
     </section>
 
-    <!-- MITRE -->
-    <section class="view" id="v-mitre">
-      <div class="head"><div><h2>MITRE ATT&amp;CK Matrix</h2><p>Click a technique to correlate. Red cells contain items in the current dataset.</p><p class="note" id="mSrc" style="margin-top:4px"></p></div>
-        <div style="display:flex;gap:10px"><button class="btn ghost" onclick="mitreFilter=null;renderMitre()">Clear selection</button></div></div>
-      <div class="panel"><div class="matrix" id="matrix"></div>
-        <div class="heat"><span>Coverage</span><i style="background:#0a1526;border:1px solid #14284a"></i><span>none</span><i style="background:rgba(255,59,92,.4)"></i><span>observed</span></div>
+    <!-- ============================ ATTACK NEWS ============================ -->
+    <section class="view" id="v-news">
+      <div class="head"><div><h1>Attack news</h1><div class="sub">Recent articles from the configured RSS/Atom feeds, collected by the local companion. Articles are reported, not verified; the trust tier shows the publisher's class.</div></div></div>
+      <div class="panel">
+        <div class="grid" style="grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
+          <input id="nq" placeholder="Filter articles by title, source or tag…" oninput="renderNews()">
+          <select id="nTier" onchange="renderNews()"><option value="">Any tier</option><option value="verified">Verified</option><option value="trusted">Trusted</option><option value="unverified">Unverified</option></select>
+        </div>
+        <div id="newsList"></div>
       </div>
-      <div class="panel" style="margin-top:16px"><div class="panel-h"><h3><i class="fa-solid fa-link"></i><span id="mTitle">Select a technique</span></h3></div><div id="mList"></div></div>
     </section>
 
-    <!-- ACTORS -->
-    <section class="view" id="v-actors">
-      <div class="head"><div><h2>Threat Actors</h2><p>Attributed clusters ranked by observed activity. Click to pivot into the feed.</p></div></div>
-      <div id="actorGrid" class="src-grid"></div>
-    </section>
-
-    <!-- VULNS -->
-    <section class="view" id="v-vulns">
-      <div class="head"><div><h2>Vulnerabilities</h2><p>Exploitation-relevant weaknesses, prioritised by severity and trust</p></div></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Severity</th><th>Identifier / Title</th><th>Trust</th><th>Source</th><th>Sector</th><th>Date</th></tr></thead><tbody id="vulnBody"></tbody></table></div>
-    </section>
-
-    <!-- IOCS -->
+    <!-- ============================ IOCs ============================ -->
     <section class="view" id="v-iocs">
-      <div class="head"><div><h2>Indicators of Compromise</h2><p>Network and host indicators. Block only after validating with the source tier.</p></div></div>
-      <div class="tbl-wrap"><table><thead><tr><th>Indicator</th><th>Context</th><th>Trust</th><th>Severity</th><th>Source</th><th>Date</th></tr></thead><tbody id="iocBody"></tbody></table></div>
-    </section>
-
-    <!-- DARK WEB -->
-    <section class="view" id="v-darkweb">
-      <div class="head"><div><h2>Dark Web &amp; Leak Monitoring</h2><p>Leak-site listings, forum claims and paste exposure. Claims are unverified until corroborated.</p></div></div>
-      <div class="banner"><i class="fa-solid fa-triangle-exclamation"></i><div>Items here are <b>claims made by threat actors or forum posters</b>. Never treat a listing as confirmed breach data without validation with the affected organisation or CERT-In. Handle any downloaded material under your legal and data-protection obligations.</div></div>
-      <div class="sec-list" id="leakList"></div>
-    </section>
-
-    <!-- SOURCES -->
-    <section class="view" id="v-sources">
-      <div class="head"><div><h2>Source Verification</h2><p>Every feed carries a trust tier. Tier decides how an item may be used in reporting.</p></div></div>
-      <div class="grid" style="grid-template-columns:repeat(4,1fr)">
-        <div class="kpi"><div class="l"><span class="chip t-verified">Verified</span></div><div class="s" style="margin-top:10px">Official government, CERT or standards body. Actionable.</div></div>
-        <div class="kpi"><div class="l"><span class="chip t-trusted">Trusted</span></div><div class="s" style="margin-top:10px">Established vendor or community with editorial review. Corroborate before blocking at scale.</div></div>
-        <div class="kpi"><div class="l"><span class="chip t-unverified">Unverified</span></div><div class="s" style="margin-top:10px">Claims with no independent confirmation, such as forum posts or aggregator listings.</div></div>
-        <div class="kpi"><div class="l"><span class="chip t-untrusted">Untrusted</span></div><div class="s" style="margin-top:10px">Failed validation, unknown provenance or known-false reporting. Excluded from reports.</div></div>
+      <div class="head"><div><h1>Indicators of compromise</h1><div class="sub">IP addresses, domains, URLs, file hashes and CVE references, with trust tier and source. Export as CSV or as a STIX 2.1 indicator bundle for your tooling.</div></div>
+        <div class="row no-print"><button class="ghost" onclick="exportIocCsv()">Export CSV</button><button onclick="exportStix()">Export STIX 2.1</button></div></div>
+      <div class="panel">
+        <div class="grid" style="grid-template-columns:2fr 1fr;gap:10px;margin-bottom:12px">
+          <input id="iq" placeholder="Filter by value, title or source…" oninput="renderIocs()">
+          <select id="iType" onchange="renderIocs()"><option value="">All types</option><option value="ipv4">IPv4</option><option value="ipv6">IPv6</option><option value="domain">Domain</option><option value="url">URL</option><option value="hash">File hash</option><option value="cve">CVE</option><option value="other">Other</option></select>
+        </div>
+        <div class="tbl-wrap"><table id="iocT"></table></div>
+        <div class="small muted" style="margin-top:8px" id="iocNote"></div>
       </div>
-      <div class="note" id="srcHealth" style="margin-top:16px"></div>
-      <div class="src-grid" id="srcGrid" style="margin-top:12px"></div>
     </section>
 
-    <!-- REPORTS -->
+    <!-- ============================ IOAs ============================ -->
+    <section class="view" id="v-ioas">
+      <div class="head"><div><h1>Indicators of attack</h1><div class="sub">Behaviours to hunt for, mapped to MITRE ATT&amp;CK. These describe what an intrusion does, so they still apply when the indicators change. Descriptions are behavioural; adapt them to your own telemetry.</div></div></div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="panel kpi c4"><div class="l">IOAs defined</div><div class="v" id="ioaN">0</div></div>
+        <div class="panel kpi c4"><div class="l">Covered by current intel</div><div class="v" id="ioaCov">0</div><div class="s">IOAs whose technique appears in the dataset</div></div>
+        <div class="panel kpi c4"><div class="l">Hits, last 7 days</div><div class="v" id="ioaHits">0</div></div>
+      </div>
+      <div class="panel"><div class="tbl-wrap"><table id="ioaT"></table></div></div>
+    </section>
+
+    <!-- ============================ ATT&CK ============================ -->
+    <section class="view" id="v-mitre">
+      <div class="head"><div><h1>MITRE ATT&amp;CK coverage</h1><div class="sub">Click a technique to correlate. Red cells contain items in the current dataset.</div><p class="small muted" id="mSrc" style="margin:4px 0 0"></p></div></div>
+      <div class="panel"><div class="matrix" id="matrix"></div></div>
+      <div class="panel" style="margin-top:14px"><div class="panel-h"><h2 id="mTitle">Select a tactic or technique</h2></div><div id="mList"></div></div>
+    </section>
+
+    <!-- ============================ APT TRACKER ============================ -->
+    <section class="view" id="v-apt">
+      <div class="head"><div><h1>APT tracker</h1><div class="sub">Threat actors as reported by the sources, with weekly activity, targeting and techniques. Actor names are the sources' attributions, which are claims; sample actors are placeholders.</div></div></div>
+      <div class="grid">
+        <div class="panel c12"><div class="panel-h"><h2>Weekly activity, top actors (12 weeks)</h2></div><div id="chApt"></div><div class="legend" id="lgApt"></div></div>
+        <div class="panel c12"><div class="panel-h"><h2>Tracked actors</h2></div><div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px" id="actorGrid"></div></div>
+      </div>
+    </section>
+
+    <!-- ============================ FORESIGHT ============================ -->
+    <section class="view" id="v-foresight">
+      <div class="head"><div><h1>Foresight</h1><div class="sub">Projections extrapolate recent volume with a least-squares trend. They show direction and rough scale for capacity planning. They do not predict specific attacks, and they assume the recent trend continues.</div></div></div>
+      <div class="grid">
+        <div class="panel kpi c3"><div class="l">Trend</div><div class="v" id="fTrend">—</div><div class="s" id="fSlope"></div></div>
+        <div class="panel kpi c3"><div class="l">Projected items, next 4 weeks</div><div class="v" id="fProj">—</div><div class="s" id="fProjS"></div></div>
+        <div class="panel kpi c3"><div class="l">Rising techniques</div><div class="v" id="fRise">0</div><div class="s">techniques with a positive trend</div></div>
+        <div class="panel kpi c3"><div class="l">Actors gaining momentum</div><div class="v" id="fAct">0</div><div class="s">last 4 weeks vs previous 4</div></div>
+        <div class="panel c12"><div class="panel-h"><h2>Weekly volume and 4-week projection</h2></div><div id="chFore"></div><div class="legend"><span><i style="background:var(--accent)"></i>Observed</span><span><i style="background:var(--accent2)"></i>Projected</span><span><i style="background:rgba(129,140,248,.25)"></i>Approx. 95% band (residual-based)</span></div></div>
+        <div class="panel c7"><div class="panel-h"><h2>Technique momentum</h2></div><div class="tbl-wrap" style="max-height:360px"><table id="riseT"></table></div></div>
+        <div class="panel c5"><div class="panel-h"><h2>Scenario sensitivity</h2></div><div class="tbl-wrap"><table id="scenT"></table></div><p class="small muted" style="margin-top:10px">Each row scales the baseline projection. Use the range to size analyst capacity, not to forecast a particular event.</p></div>
+        <div class="panel c12"><div class="warnbox"><b>Method and limits.</b> Least-squares trend on the last 8 weekly counts; band is ±1.96 × residual standard error. With few weeks of data the projection is unreliable and is shown as such. Volume reflects what sources reported, not what happened, so changes in reporting can move the trend.</div></div>
+      </div>
+    </section>
+
+    <!-- ============================ REPORTS ============================ -->
     <section class="view" id="v-reports">
-      <div class="head"><div><h2>Executive Reports</h2><p>Formatted briefing generated from the current dataset. Use Print &rarr; Save as PDF.</p></div></div>
+      <div class="head"><div><h1>Reports</h1><div class="sub">Print-ready briefings. Use your browser's Print &rarr; Save as PDF. Reports only include items in the scope you choose.</div></div></div>
       <div class="grid">
         <div class="panel c6">
-          <div class="panel-h"><h3><i class="fa-solid fa-file-contract"></i>Briefing options</h3></div>
-          <div class="field"><label>Scope</label><select class="sel" id="rScope"><option value="all">All tiers</option><option value="verified">Verified and trusted only (recommended for leadership)</option></select></div>
-          <div class="field"><label>Window</label><select class="sel" id="rWin"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="9999">Entire dataset</option></select></div>
-          <div class="field"><label>Classification label</label><input class="inp" id="rClass" value="TLP:AMBER"></div>
-          <div class="field"><label>Prepared for</label><input class="inp" id="rFor" value="Security Leadership"></div>
-          <button class="btn" onclick="buildReport()"><i class="fa-solid fa-file-pdf"></i> Generate briefing</button>
+          <h2>Briefing options</h2>
+          <div class="field">Scope<select id="rScope"><option value="verified">Verified and trusted only (recommended for leadership)</option><option value="all">All tiers (includes unverified claims, marked as such)</option></select></div>
+          <div class="field">Window<select id="rWin"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="9999">Entire dataset</option></select></div>
+          <div class="field">Classification label<input id="rClass" value="TLP:AMBER"></div>
+          <div class="field">Prepared for<input id="rFor" value="Security Leadership"></div>
+          <div class="row"><button onclick="reportExec()">Executive brief</button><button class="ghost" onclick="reportTech()">Technical report</button></div>
         </div>
         <div class="panel c6">
-          <div class="panel-h"><h3><i class="fa-solid fa-list-check"></i>Briefing contents</h3></div>
-          <div class="note" style="font-size:13px;line-height:1.9">
-            1. Executive summary with key metrics<br>
-            2. Priority threats (critical and high)<br>
-            3. Trust-tier breakdown and source health<br>
-            4. MITRE ATT&amp;CK tactic coverage<br>
-            5. Actor activity and sector exposure<br>
-            6. Recommended actions and methodology note
-          </div>
+          <h2>Data exports</h2>
+          <p class="small muted">Exports use the current dataset. Synthetic SAMPLE records are flagged in every export.</p>
+          <div class="row"><button class="ghost" onclick="exportJSON()">Feed JSON</button><button class="ghost" onclick="exportStix()">STIX 2.1 bundle</button><button class="ghost" onclick="exportIocCsv()">IOC CSV</button></div>
         </div>
       </div>
     </section>
 
-    <!-- SETTINGS -->
+    <!-- ============================ SOURCES ============================ -->
+    <section class="view" id="v-sources">
+      <div class="head"><div><h1>Sources</h1><div class="sub">Every source carries a trust tier, which decides how its items may be used. Health comes from the last sync.</div></div></div>
+      <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px">
+        <div class="panel kpi"><span class="chip t-verified">Verified</span><div class="s" style="margin-top:8px">Official government, CERT or standards body. Actionable.</div></div>
+        <div class="panel kpi"><span class="chip t-trusted">Trusted</span><div class="s" style="margin-top:8px">Established vendor or community source with review. Corroborate before blocking at scale.</div></div>
+        <div class="panel kpi"><span class="chip t-unverified">Unverified</span><div class="s" style="margin-top:8px">Claims without independent confirmation, such as leak-site listings. Monitor only.</div></div>
+        <div class="panel kpi"><span class="chip t-untrusted">Untrusted</span><div class="s" style="margin-top:8px">Failed validation or unknown provenance. Excluded from reports.</div></div>
+      </div>
+      <div class="small muted" id="srcHealth" style="margin-bottom:12px"></div>
+      <div class="src-grid" id="srcGrid"></div>
+    </section>
+
+    <!-- ============================ SETTINGS ============================ -->
     <section class="view" id="v-settings">
-      <div class="head"><div><h2>Settings &amp; Data</h2><p>Import, export and manage the dataset. Changes persist in this browser only.</p></div></div>
+      <div class="head"><div><h1>Settings</h1><div class="sub">The console runs offline from its saved dataset. Live sync needs the local companion (<span class="mono">python3 serve.py</span>), which runs the collector and returns the feed. Keys stay on that machine.</div></div></div>
       <div class="grid">
         <div class="panel c6">
-          <div class="panel-h"><h3><i class="fa-solid fa-download"></i>Export</h3></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn" onclick="exportJSON()"><i class="fa-solid fa-file-code"></i> JSON</button>
-            <button class="btn ghost" onclick="exportCSV()"><i class="fa-solid fa-file-csv"></i> CSV</button>
+          <h2>Connectivity</h2>
+          <div class="dl" id="connDl"></div>
+          <div class="field">Sync window<select id="syncDays"><option value="1">Last 1 day</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option></select></div>
+          <div class="row"><button id="syncBtn" onclick="syncLive()">Sync live intel</button><button class="ghost" onclick="checkCompanion(true)">Re-check companion</button></div>
+          <p class="small muted" style="margin-top:10px">Sync replaces the current dataset with the result. Failed sources are shown in Sources and never filled with data.</p>
+        </div>
+        <div class="panel c6">
+          <h2>Dataset</h2>
+          <div class="field">Import a feed JSON file<input type="file" id="importFile" accept="application/json,.json" onchange="importFile(event)"></div>
+          <div class="row">
+            <button class="ghost" onclick="exportJSON()">Export feed JSON</button>
+            <button class="ghost" onclick="exportIocCsv()">Export IOC CSV</button>
           </div>
-        </div>
-        <div class="panel c6">
-          <div class="panel-h"><h3><i class="fa-solid fa-upload"></i>Import feed file</h3></div>
-          <p class="note" style="margin-bottom:12px">Accepts a ThreatIntFlux JSON file (<span class="mono">threatintflux_feed.json</span> from the collector) or a JSON array of items. Merges by item id.</p>
-          <input type="file" id="fileIn" accept=".json" onchange="importFile(event)" class="inp" style="width:100%">
-        </div>
-        <div class="panel c6">
-          <div class="panel-h"><h3><i class="fa-solid fa-rotate"></i>Dataset</h3></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn ghost" onclick="loadSample()">Load sample dataset</button>
-            <button class="btn danger" onclick="clearAll()">Clear all</button>
+          <div class="row" style="margin-top:10px">
+            <button class="ghost" onclick="loadSample()">Load sample dataset</button>
+            <button class="ghost" onclick="clearAll()" style="color:var(--err)">Clear all intel</button>
           </div>
-        </div>
-        <div class="panel c6">
-          <div class="panel-h"><h3><i class="fa-solid fa-circle-info"></i>About</h3></div>
-          <p class="note">ThreatIntFlux v3. Browser-only analyst console. Live ingestion runs through <span class="mono">threatintflux_collector.py</span>, which writes a feed file this console imports.</p>
+          <p class="small muted" style="margin-top:10px">Import validates against the same schema as the collector. A failed file is rejected with the reasons.</p>
         </div>
       </div>
     </section>
-  </div>
-</main>
+
+    <div class="foot">ThreatIntFlux · the console runs offline from its saved dataset. Intel from external sources is shown with its trust tier and source. Verify before acting.</div>
+  </main>
 </div>
 
-<!-- DRAWER -->
+<aside class="drawer" id="drawer"></aside>
 <div class="scrim" id="scrim" onclick="closeDrawer()"></div>
-<aside class="drawer" id="drawer" style="position:fixed"></aside>
 <div class="toast" id="toast"></div>
 
 <script>
 /* ==================================================================
-   CONFIG & CONSTANTS
+   CONFIG
    ================================================================== */
-const STORE_KEY = 'threatintflux.dataset.v3';
-const TIERS = {verified:'Verified', trusted:'Trusted', unverified:'Unverified', untrusted:'Untrusted'};
-const SEV_ORDER = {critical:4, high:3, medium:2, low:1};
+const DB_KEY='threatintflux.dataset.v4', OLD_KEY='threatintflux.dataset.v3';
+const TIERS={verified:'Verified',trusted:'Trusted',unverified:'Unverified',untrusted:'Untrusted'};
+const SEV_ORDER={critical:4,high:3,medium:2,low:1};
+const SEVW={critical:4,high:3,medium:2,low:1}, TIERW={verified:1,trusted:.8,unverified:.5,untrusted:0};
+const PALETTE=['#22d3ee','#818cf8','#34d399','#fb923c','#f472b6','#facc15','#60a5fa','#a3e635'];
+const SEVCOL={critical:'#f43f5e',high:'#fb923c',medium:'#facc15',low:'#60a5fa'};
+const TIERCOL={verified:'#34d399',trusted:'#22d3ee',unverified:'#fbbf24',untrusted:'#94a3b8'};
+const DAY=864e5;
+const VIEWS=[['summary','Executive summary','◈'],['feed','Threat feed','≡'],['news','Attack news','¶'],['iocs','IOCs','#'],['ioas','IOAs','⚑'],
+  ['mitre','ATT&CK coverage','▦'],['apt','APT tracker','◉'],['foresight','Foresight','↗'],['reports','Reports','▤'],['sources','Sources','✓'],['settings','Settings','⚙']];
 
-// Verified reference sources (ingested by collector) and curated directories (link-only).
+// Verified reference and feed sources (names must match the collector's source names exactly).
 const SOURCES = [
  {name:'CISA Known Exploited Vulnerabilities', tier:'verified', kind:'Feed', url:'https://www.cisa.gov/known-exploited-vulnerabilities-catalog', desc:'US government catalogue of vulnerabilities confirmed exploited in the wild. Used for patch prioritisation.'},
  {name:'NVD (NIST) CVE API 2.0', tier:'verified', kind:'Feed', url:'https://nvd.nist.gov/developers/vulnerabilities', desc:'Official CVE enrichment with CVSS scoring and CPE applicability.'},
- {name:'MITRE ATT&CK (STIX 2.1)', tier:'verified', kind:'Framework', url:'https://attack.mitre.org/', desc:'Canonical adversary technique taxonomy used to tag every item.'},
+ {name:'MITRE ATT&CK (STIX 2.1)', tier:'verified', kind:'Framework', url:'https://attack.mitre.org/', desc:'Canonical adversary technique taxonomy. Loaded with the collector\'s --mitre option.'},
  {name:'CERT-In (India)', tier:'verified', kind:'Advisory', url:'https://www.cert-in.org.in/', desc:'National CERT advisories. The collector reads a CERT-In RSS feed set with CERTIN_FEED_URL; the public feed URL is not yet confirmed.'},
+ {name:'GitHub Security Advisories', tier:'verified', kind:'Feed', url:'https://github.com/advisories', desc:'Maintainer-published advisories for open-source packages. Set GITHUB_TOKEN to raise the rate limit.'},
+ {name:'CISA cybersecurity advisories (RSS)', tier:'verified', kind:'News', url:'https://www.cisa.gov/news-events/cybersecurity-advisories', desc:'Government advisories and alerts, as an RSS feed. Feed URL is configurable; not verified against the live site.'},
  {name:'abuse.ch URLhaus', tier:'trusted', kind:'Feed', url:'https://urlhaus.abuse.ch/', desc:'Community-curated malware distribution URLs with editorial review.'},
  {name:'abuse.ch ThreatFox', tier:'trusted', kind:'Feed', url:'https://threatfox.abuse.ch/', desc:'Malware IOC sharing platform. Requires a free Auth-Key.'},
- {name:'AlienVault OTX', tier:'trusted', kind:'Feed', url:'https://otx.alienvault.com/', desc:'Community pulses. Requires a free API key; subscribed pulses are used.'},
  {name:'abuse.ch MalwareBazaar', tier:'trusted', kind:'Feed', url:'https://bazaar.abuse.ch/', desc:'Recently added malware samples with family and tags. Requires a free Auth-Key.'},
  {name:'abuse.ch Feodo Tracker', tier:'trusted', kind:'Feed', url:'https://feodotracker.abuse.ch/', desc:'Botnet command-and-control server blocklist for families such as Dridex, Emotet and QakBot. No key required.'},
- {name:'GitHub Security Advisories', tier:'verified', kind:'Feed', url:'https://github.com/advisories', desc:'Maintainer-published advisories for open-source packages. Set GITHUB_TOKEN to raise the rate limit.'},
+ {name:'AlienVault OTX', tier:'trusted', kind:'Feed', url:'https://otx.alienvault.com/', desc:'Community pulses. Requires a free API key; subscribed pulses are used.'},
+ {name:'The Hacker News (RSS)', tier:'trusted', kind:'News', url:'https://thehackernews.com/', desc:'Security news and incident reporting, as an RSS feed. Feed URL is configurable; not verified against the live site.'},
+ {name:'BleepingComputer (RSS)', tier:'trusted', kind:'News', url:'https://www.bleepingcomputer.com/', desc:'Security news and breach reporting, as an RSS feed. Feed URL is configurable; not verified against the live site.'},
  {name:'Ransomware leak-site aggregator', tier:'unverified', kind:'Claims', url:'https://www.ransomware.live/', desc:'Victim listings posted by extortion groups. Claims only, not confirmed by victims.'},
  {name:'Start.me: Open Source Investigative Tools', tier:'unverified', kind:'Reference', url:'https://start.me/p/gyvaAJ/open-source-investigative-tools', desc:'Curated OSINT tool directory. Reference only; not ingested.'},
+ {name:'Start.me: OSINT India', tier:'unverified', kind:'Reference', url:'https://start.me/p/vjR5wL/osint-india', desc:'India-focused OSINT resources. Reference only.'},
  {name:'Start.me: OSINT Dark Web (Russia)', tier:'unverified', kind:'Reference', url:'https://start.me/p/kx5qL5/osint-darkweb-russia', desc:'Dark web and regional OSINT reference page. Reference only.'},
  {name:'Start.me: Search Engines, Dark Web & Clearnet', tier:'unverified', kind:'Reference', url:'https://start.me/p/BP8Xbw/search-engines-darkweb-and-clear', desc:'Search engine directory for clearnet and dark web research. Reference only.'},
  {name:'Start.me: OSINT Tools & Resources', tier:'unverified', kind:'Reference', url:'https://start.me/p/gy1BgY/osint-tools-and-resources', desc:'General OSINT tooling directory. Reference only.'},
  {name:'Start.me: OSINT Research', tier:'unverified', kind:'Reference', url:'https://start.me/p/rxekAP/osint-research', desc:'Research methodology and tool links. Reference only.'},
  {name:'Start.me: CommanderGirl Suggestions', tier:'unverified', kind:'Reference', url:'https://start.me/p/1kJKR9/commandergirl-s-suggestions', desc:'Community-curated OSINT links. Reference only.'},
  {name:'Start.me: OSINT 500 Tools', tier:'unverified', kind:'Reference', url:'https://start.me/p/0Pqbdg/osint-500-tools', desc:'Large catalogue of OSINT tools. Reference only.'},
- {name:'Start.me: OSINT India', tier:'unverified', kind:'Reference', url:'https://start.me/p/vjR5wL/osint-india', desc:'India-focused OSINT resources. Reference only.'},
  {name:'Start.me: The Ultimate OSINT Collection', tier:'unverified', kind:'Reference', url:'https://start.me/p/DPYPMz/the-ultimate-osint-collection', desc:'Broad OSINT resource collection. Reference only.'},
  {name:'Start.me: SOCMINT', tier:'unverified', kind:'Reference', url:'https://start.me/p/Wp1kpe/socmint', desc:'Social media intelligence resources. Reference only.'},
- {name:'Start.me: OSINT4ALL', tier:'unverified', kind:'Reference', url:'https://start.me/p/L1rEYQ/osint4all', desc:'OSINT training and tool resources. Reference only.'}
+ {name:'Start.me: OSINT4ALL', tier:'unverified', kind:'Reference', url:'https://start.me/p/L1rEYQ/osint4all', desc:'OSINT training and tool resources. Reference only.'},
 ];
 
-// MITRE ATT&CK Enterprise: tactics and a representative technique subset.
-// Load the full matrix via the collector (mitre_stix) for complete coverage.
+// Indicators of attack: behaviours to hunt for, mapped to ATT&CK. Descriptions only; no detection code.
+const IOAS = [
+ {id:'IOA-01', name:'Encoded or hidden PowerShell', tech:'T1059.001', sev:'high', src:'Process creation telemetry', what:'A PowerShell process starts with an encoded or hidden-window command argument.'},
+ {id:'IOA-02', name:'Office application spawns a script host', tech:'T1204.002', sev:'high', src:'Process creation telemetry', what:'Word, Excel or Outlook starts cmd, PowerShell, wscript, cscript or mshta as a child process.'},
+ {id:'IOA-03', name:'Shadow copy deletion', tech:'T1490', sev:'critical', src:'Process creation telemetry', what:'Volume shadow copies or the backup catalogue are deleted, often just before mass file changes.'},
+ {id:'IOA-04', name:'Credential store memory access', tech:'T1003.001', sev:'critical', src:'Process access telemetry', what:'A non-system process opens the LSASS process with memory-read rights.'},
+ {id:'IOA-05', name:'Scheduled task from a user-writable path', tech:'T1053.005', sev:'high', src:'Scheduled task creation events', what:'A scheduled task runs a binary stored in a user profile, temp or public folder.'},
+ {id:'IOA-06', name:'Run-key persistence', tech:'T1547.001', sev:'medium', src:'Registry write telemetry', what:'A value is written under a Run or RunOnce key that points at a user-writable location.'},
+ {id:'IOA-07', name:'Security tooling tampered with', tech:'T1562.001', sev:'high', src:'Service and process telemetry', what:'An endpoint security service is stopped or reconfigured outside a change window.'},
+ {id:'IOA-08', name:'Fixed-interval outbound beaconing', tech:'T1071.001', sev:'high', src:'Network flow logs', what:'Repeated connections to one destination at near-constant intervals with similar payload sizes.'},
+ {id:'IOA-09', name:'Login brute force', tech:'T1110', sev:'medium', src:'Authentication logs', what:'Many failed logons from one source, or from many sources against one account, in a short window.'},
+ {id:'IOA-10', name:'First-time external RDP logon', tech:'T1021.001', sev:'high', src:'Authentication and network logs', what:'A successful remote-desktop logon from an address that has not connected before.'},
+ {id:'IOA-11', name:'Bulk archive staging', tech:'T1560', sev:'medium', src:'File access telemetry', what:'Large archives are created in a short period in a staging folder, usually before an upload.'},
+ {id:'IOA-12', name:'Upload to a file-sharing or paste service', tech:'T1567', sev:'high', src:'Proxy and DNS logs', what:'Large uploads to file-sharing or paste services from a server that does not normally use them.'},
+ {id:'IOA-13', name:'Burst of service-ticket requests', tech:'T1558.003', sev:'high', src:'Domain controller security events', what:'Many service-ticket requests for service accounts in a short window, using legacy encryption.'},
+ {id:'IOA-14', name:'Domain trust enumeration', tech:'T1482', sev:'medium', src:'Command and LDAP telemetry', what:'Domain trust or controller enumeration commands run from an ordinary workstation.'},
+ {id:'IOA-15', name:'Web server spawns a shell', tech:'T1505.003', sev:'high', src:'Web server logs and process telemetry', what:'A web server worker process starts a command interpreter. This often points to a web shell.'},
+ {id:'IOA-16', name:'Attachment opened, then process launched', tech:'T1566.001', sev:'high', src:'Mail gateway and process telemetry', what:'A macro-enabled or archive attachment is opened and a new process starts within minutes.'},
+ {id:'IOA-17', name:'Remote download with a built-in utility', tech:'T1105', sev:'medium', src:'Process creation telemetry', what:'certutil or bitsadmin fetches a file from a remote URL.'},
+ {id:'IOA-18', name:'Lateral movement over admin shares', tech:'T1021.002', sev:'high', src:'SMB and service-creation events', what:'A write to an administrative share on one host is followed by a service being created on another.'},
+];
+
+/* ==================================================================
+   STATE & STORAGE
+   ================================================================== */
+let DATA=[], ARTICLES=[], FEED_META={origin:'sample',generated_at:null,sources:[]}, COMPANION=null, mitreFilter=null;
+function save(){try{localStorage.setItem(DB_KEY,JSON.stringify({items:DATA,articles:ARTICLES,meta:FEED_META}))}catch(e){}}
+function restore(){
+  for(const k of [DB_KEY,OLD_KEY]){
+    try{
+      const raw=localStorage.getItem(k); if(!raw) continue;
+      const o=JSON.parse(raw);
+      if(o&&Array.isArray(o.items)&&o.items.length){
+        DATA=o.items; ARTICLES=Array.isArray(o.articles)?o.articles:[];
+        FEED_META=Object.assign({origin:'import',sources:[]},o.meta||{});
+        return true;
+      }
+    }catch(e){}
+  }
+  return false;
+}
+
+/* ==================================================================
+   HELPERS
+   ================================================================== */
+const $=id=>document.getElementById(id);
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(msg){const t=$('toast');t.innerHTML=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),3800)}
+const sevChip=s=>`<span class="chip sev-${esc(s)}">${esc(s)}</span>`;
+const tierChip=t=>`<span class="chip t-${esc(t)}">${esc(TIERS[t]||t)}</span>`;
+const fmtD=d=>{const x=new Date(d);return isNaN(x)?'—':x.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'})};
+const fmtDT=d=>{const x=new Date(d);return isNaN(x)?'—':x.toLocaleString('en-GB',{timeZone:'UTC'})+' UTC'};
+const isSynth=d=>d&&d.synthetic?'<span class="syn">SAMPLE</span>':'';
+const actorOf=it=>it.actor||'Unattributed';
+const sorted=arr=>[...arr].sort((a,b)=>(SEV_ORDER[b.severity]-SEV_ORDER[a.severity])||(new Date(b.date)-new Date(a.date)));
+const score=it=>(SEVW[it.severity]||0)*(TIERW[it.tier]??0)*25;   // 0–100 per item
+
+/* ==================================================================
+   SEARCH QUERY PARSER (carried over from v3)
+   ================================================================== */
+function parseQuery(q){
+  const out={terms:[],excl:[],fields:{}};
+  (q.match(/(?:[^\s"]+|"[^"]*")+/g)||[]).forEach(tok=>{
+    tok=tok.replace(/"/g,'');
+    let neg=false; if(tok.startsWith('-')&&tok.length>1){neg=true;tok=tok.slice(1)}
+    const m=tok.match(/^(severity|tier|type|sector|region|actor|source|mitre|after|before):(.+)$/i);
+    if(m){out.fields[m[1].toLowerCase()]=m[2].toLowerCase()}
+    else (neg?out.excl:out.terms).push(tok.toLowerCase());
+  });
+  return out;
+}
+function matches(it,p){
+  const hay=[it.id,it.title,it.type,it.severity,it.tier,it.source,it.sector,it.region,it.actor,it.ioc,it.summary,(it.mitre||[]).join(' ')].join(' ').toLowerCase();
+  for(const t of p.terms) if(!hay.includes(t)) return false;
+  for(const t of p.excl) if(hay.includes(t)) return false;
+  const f=p.fields;
+  if(f.severity&&it.severity!==f.severity) return false;
+  if(f.tier&&it.tier!==f.tier) return false;
+  if(f.type&&!it.type.includes(f.type)) return false;
+  if(f.sector&&!it.sector.toLowerCase().includes(f.sector)) return false;
+  if(f.region&&!it.region.toLowerCase().includes(f.region)) return false;
+  if(f.actor&&!it.actor.toLowerCase().includes(f.actor)) return false;
+  if(f.source&&!it.source.toLowerCase().includes(f.source)) return false;
+  if(f.mitre&&!(it.mitre||[]).some(m=>m.toLowerCase().startsWith(f.mitre))) return false;
+  if(f.after&&new Date(it.date)<new Date(f.after)) return false;
+  if(f.before&&new Date(it.date)>new Date(f.before)) return false;
+  return true;
+}
+
+/* ==================================================================
+   ATT&CK DATA
+   ================================================================== */
 const TACTICS = [
  ['TA0043','Reconnaissance'],['TA0042','Resource Development'],['TA0001','Initial Access'],['TA0002','Execution'],
  ['TA0003','Persistence'],['TA0004','Privilege Escalation'],['TA0005','Defense Evasion'],['TA0006','Credential Access'],
@@ -443,6 +487,10 @@ const TECH = {
 /* ==================================================================
    SAMPLE DATASET (synthetic, clearly labelled, no real victims)
    Uses placeholder actors, RFC 5737 IP ranges and .example domains.
+   ================================================================== */
+
+/* ==================================================================
+   SAMPLE DATASET (synthetic; every record is flagged SAMPLE)
    ================================================================== */
 function mulberry(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 function buildSample(){
@@ -511,205 +559,292 @@ function buildSample(){
 /* ==================================================================
    STATE
    ================================================================== */
-let DATA=[], FEED_META=null, mitreFilter=null, chartRefs={}, filterState={};
-function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify({items:DATA,meta:FEED_META}))}catch(e){}}
-function restore(){
-  try{const raw=localStorage.getItem(STORE_KEY); if(raw){const o=JSON.parse(raw); if(o&&Array.isArray(o.items)&&o.items.length){DATA=o.items;FEED_META=o.meta;return true}}}catch(e){}
-  return false;
-}
-function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function toast(msg){const t=document.getElementById('toast');t.innerHTML=msg;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),3200)}
-const sevChip=s=>`<span class="chip sev-${esc(s)}">${esc(s)}</span>`;
-const tierChip=t=>`<span class="chip t-${esc(t)}">${esc(TIERS[t]||t)}</span>`;
-const fmtD=d=>new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-const isSynth=d=>d.synthetic?'<span class="syn">SAMPLE</span>':'';
+
 
 /* ==================================================================
-   NAVIGATION
+   TIME SERIES & FORECASTING (plain arithmetic; see Foresight for limits)
    ================================================================== */
+function weekStart(d){const x=new Date(d);const day=(x.getUTCDay()+6)%7;x.setUTCHours(0,0,0,0);x.setUTCDate(x.getUTCDate()-day);return x.toISOString().slice(0,10)}
+function weekKeys(n){const start=Date.parse(weekStart(new Date()));const out=[];for(let i=n-1;i>=0;i--)out.push(new Date(start-i*7*DAY).toISOString().slice(0,10));return out}
+function weeklyCounts(items,n=12){
+  const keys=weekKeys(n), idx=new Map(keys.map((k,i)=>[k,i])), c=new Array(n).fill(0);
+  items.forEach(it=>{const i=idx.get(weekStart(it.date));if(i!==undefined)c[i]++});
+  return {keys,counts:c};
+}
+function ols(y){
+  const n=y.length; if(n<3) return null;
+  const mx=(n-1)/2, my=y.reduce((a,b)=>a+b,0)/n;
+  let sxx=0,sxy=0; for(let i=0;i<n;i++){sxx+=(i-mx)**2;sxy+=(i-mx)*(y[i]-my)}
+  const b=sxy/sxx, a=my-b*mx;
+  let sse=0; for(let i=0;i<n;i++) sse+=(y[i]-(a+b*i))**2;
+  return {a,b,se:n>2?Math.sqrt(sse/(n-2)):0,n};
+}
+function forecast(y,h=4,window=8){
+  const yy=y.slice(-window), f=ols(yy); if(!f) return null;
+  const out=[];
+  for(let k=1;k<=h;k++){const x=yy.length-1+k;const yhat=Math.max(0,f.a+f.b*x);out.push({yhat,lo:Math.max(0,yhat-1.96*f.se),hi:yhat+1.96*f.se})}
+  return {...f,out};
+}
+const sum=a=>a.reduce((x,y)=>x+y,0);
+
+/* ==================================================================
+   SVG CHARTS (no external libraries: the console works offline)
+   ================================================================== */
+function svgBar(el,labels,vals,colors){
+  if(!labels.length){el.innerHTML='<div class="empty">No data yet.</div>';return}
+  const W=540,H=200,pl=34,pb=30,pt=12,pr=8, max=Math.max(1,...vals), bw=(W-pl-pr)/labels.length;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="bar chart">`;
+  for(let g=0;g<=4;g++){const y=pt+(H-pt-pb)*g/4;s+=`<line class="grid" x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}"/><text class="ax" x="${pl-6}" y="${y+4}" text-anchor="end">${Math.round(max*(1-g/4))}</text>`}
+  labels.forEach((l,i)=>{const bh=(H-pt-pb)*vals[i]/max,x=pl+i*bw+bw*.16,w=bw*.68,y=H-pb-bh;
+    s+=`<rect x="${x}" y="${y}" width="${w}" height="${Math.max(bh,0)}" rx="5" fill="${colors?colors[i]:PALETTE[0]}" opacity=".9"><title>${esc(l)}: ${vals[i]}</title></rect>`+
+       `<text class="ax" x="${x+w/2}" y="${H-pb+16}" text-anchor="middle">${esc(String(l).slice(0,12))}</text>`});
+  el.innerHTML=s+'</svg>';
+}
+function svgHBar(el,labels,vals,color){
+  if(!labels.length){el.innerHTML='<div class="empty">No data yet.</div>';return}
+  const max=Math.max(1,...vals);
+  el.innerHTML=labels.map((l,i)=>`<div style="display:grid;grid-template-columns:minmax(120px,38%) 1fr 44px;gap:10px;align-items:center;margin:7px 0;font-size:12.5px">
+    <div class="muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l)}">${esc(l)}</div>
+    <div class="bar" style="margin:0;height:9px"><i style="width:${Math.round(vals[i]/max*100)}%;background:${color||PALETTE[i%PALETTE.length]}"></i></div>
+    <div class="mono" style="text-align:right">${vals[i]}</div></div>`).join('');
+}
+function svgDonut(el,labels,vals,colors){
+  const total=sum(vals); if(!total){el.innerHTML='<div class="empty">No data yet.</div>';return}
+  let a0=-Math.PI/2, paths='';
+  vals.forEach((v,i)=>{ if(!v) return; const a1=a0+v/total*2*Math.PI, large=a1-a0>Math.PI?1:0, r=70, cx=90, cy=90;
+    const x0=cx+r*Math.cos(a0), y0=cy+r*Math.sin(a0), x1=cx+r*Math.cos(a1), y1=cy+r*Math.sin(a1);
+    paths+=`<path d="M${cx},${cy} L${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="${colors[i]}"><title>${esc(labels[i])}: ${v}</title></path>`;
+    a0=a1 });
+  el.innerHTML=`<div class="row" style="gap:18px;align-items:center;flex-wrap:nowrap"><svg viewBox="0 0 180 180" style="width:150px;flex:none">${paths}<circle cx="90" cy="90" r="42" fill="var(--panel)"/><text x="90" y="96" text-anchor="middle" style="fill:var(--txt);font-size:20px;font-weight:700">${total}</text></svg>
+    <div style="font-size:13px;display:grid;gap:6px">${labels.map((l,i)=>`<div><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${colors[i]};margin-right:8px"></i>${esc(l)} <span class="muted">· ${vals[i]}</span></div>`).join('')}</div></div>`;
+}
+function svgStacked(el,labels,series){
+  const W=900,H=240,pl=34,pb=30,pt=10,pr=8; const n=labels.length;
+  const totals=labels.map((_,i)=>series.reduce((a,s)=>a+s.vals[i],0)); const max=Math.max(1,...totals), bw=(W-pl-pr)/n;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let g=0;g<=4;g++){const y=pt+(H-pt-pb)*g/4;s+=`<line class="grid" x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}"/><text class="ax" x="${pl-6}" y="${y+4}" text-anchor="end">${Math.round(max*(1-g/4))}</text>`}
+  labels.forEach((l,i)=>{let base=H-pb;series.forEach(se=>{const h=(H-pt-pb)*se.vals[i]/max;base-=h;if(h>0)s+=`<rect x="${pl+i*bw+bw*.18}" y="${base}" width="${bw*.64}" height="${h}" fill="${se.color}" opacity=".9"><title>${esc(se.name)} · ${esc(l)}: ${se.vals[i]}</title></rect>`});
+    s+=`<text class="ax" x="${pl+i*bw+bw/2}" y="${H-pb+16}" text-anchor="middle">${esc(l.slice(5))}</text>`});
+  el.innerHTML=s+'</svg>';
+}
+function svgForecast(el,labels,actual,proj){
+  const W=900,H=260,pl=40,pb=30,pt=12,pr=12;
+  const all=[...actual,...proj.map(p=>p.hi)], max=Math.max(1,...all), n=actual.length+proj.length;
+  const X=i=>pl+(W-pl-pr)*i/(n-1), Y=v=>pt+(H-pt-pb)*(1-v/max);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let g=0;g<=4;g++){const v=max*g/4;s+=`<line class="grid" x1="${pl}" x2="${W-pr}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${pl-6}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`}
+  if(proj.length){
+    const last=actual.length-1;
+    const band=proj.map((p,k)=>`${X(last+1+k)},${Y(p.hi)}`).concat(proj.slice().reverse().map((p,k)=>`${X(last+proj.length-k)},${Y(p.lo)}`)).join(' ');
+    s+=`<polygon points="${X(last)},${Y(actual[last])} ${band}" fill="rgba(129,140,248,.22)"/>`;
+    s+=`<polyline fill="none" stroke="#818cf8" stroke-width="2.5" stroke-dasharray="6 5" points="${X(last)},${Y(actual[last])} ${proj.map((p,k)=>`${X(last+1+k)},${Y(p.yhat)}`).join(' ')}"/>`;
+  }
+  s+=`<polyline fill="none" stroke="#22d3ee" stroke-width="2.5" points="${actual.map((v,i)=>`${X(i)},${Y(v)}`).join(' ')}"/>`;
+  actual.forEach((v,i)=>{s+=`<circle cx="${X(i)}" cy="${Y(v)}" r="3.2" fill="#22d3ee"><title>${esc(labels[i])}: ${v}</title></circle>`});
+  proj.forEach((p,k)=>{s+=`<circle cx="${X(actual.length+k)}" cy="${Y(p.yhat)}" r="3.5" fill="#818cf8"><title>projected: ${p.yhat.toFixed(1)} (${p.lo.toFixed(0)}–${p.hi.toFixed(0)})</title></circle>`});
+  labels.forEach((l,i)=>{if(i%2===0) s+=`<text class="ax" x="${X(i)}" y="${H-8}" text-anchor="middle">${esc(l.slice(5))}</text>`});
+  el.innerHTML=s+'</svg>';
+}
+
+/* ==================================================================
+   NAV & RENDER DISPATCH
+   ================================================================== */
+function buildNav(){
+  $('nav').innerHTML=VIEWS.map(([v,label,ic])=>`<a data-v="${v}" onclick="go('${v}')"><span class="ic">${ic}</span>${label}</a>`).join('');
+}
+const RENDER={};
 function go(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
   document.querySelectorAll('.nav a').forEach(a=>a.classList.toggle('on',a.dataset.v===v));
-  const renders={overview:renderOverview,feed:renderFeed,mitre:renderMitre,actors:renderActors,vulns:renderVulns,iocs:renderIocs,darkweb:renderLeaks,sources:renderSources};
-  if(renders[v]) renders[v]();
-  document.getElementById('v-'+v).scrollTop=0;
-  if(v==='feed'&&filterState.severity===undefined){}
+  if(RENDER[v]) RENDER[v]();
+  window.scrollTo({top:0});
 }
-document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click',()=>go(a.dataset.v)));
-document.addEventListener('keydown',e=>{if(e.key==='/'&&document.activeElement.tagName!=='INPUT'){e.preventDefault();document.getElementById('qGlobal').focus()}if(e.key==='Escape')closeDrawer()});
-document.getElementById('qGlobal').addEventListener('keydown',e=>{if(e.key==='Enter'){document.getElementById('sQuery').value=e.target.value;go('search');runSearch()}});
+function renderAll(){
+  Object.values(RENDER).forEach(f=>f());
+  renderOrigin();
+}
+function renderOrigin(){
+  const o=FEED_META.origin||'sample';
+  const label={sample:'Sample dataset (synthetic)',live:'Live sync'+(FEED_META.generated_at?' · '+fmtDT(FEED_META.generated_at):''),import:'Imported dataset',file:'Feed file'}[o]||o;
+  $('originChip').textContent=label;
+  $('sumSub').textContent=`Source of this view: ${label}. ${o==='sample'?'Placeholder data for demonstration; nothing here is real threat intelligence.':'Items carry their trust tier and source. Verify before acting.'}`;
+}
 
 /* ==================================================================
-   QUERY PARSER  (free text + field:value + -exclude)
+   EXECUTIVE SUMMARY
    ================================================================== */
-function parseQuery(q){
-  const out={terms:[],excl:[],fields:{}};
-  (q.match(/(?:[^\s"]+|"[^"]*")+/g)||[]).forEach(tok=>{
-    tok=tok.replace(/"/g,'');
-    let neg=false; if(tok.startsWith('-')&&tok.length>1){neg=true;tok=tok.slice(1)}
-    const m=tok.match(/^(severity|tier|type|sector|region|actor|source|mitre|after|before):(.+)$/i);
-    if(m){out.fields[m[1].toLowerCase()]=m[2].toLowerCase()}
-    else (neg?out.excl:out.terms).push(tok.toLowerCase());
-  });
-  return out;
+function topTechniques(items,n=8){const m={};items.forEach(i=>(i.mitre||[]).forEach(t=>m[t]=(m[t]||0)+1));return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n)}
+function techName(id){
+  const live=FEED_META.mitre_techniques; if(Array.isArray(live)){const t=live.find(x=>x.id===id); if(t) return t.name}
+  for(const ts of Object.values(TECH)) for(const [i,n] of ts) if(i===id) return n;
+  return id;
 }
-function matches(it,p){
-  const hay=[it.id,it.title,it.type,it.severity,it.tier,it.source,it.sector,it.region,it.actor,it.ioc,it.summary,(it.mitre||[]).join(' ')].join(' ').toLowerCase();
-  for(const t of p.terms) if(!hay.includes(t)) return false;
-  for(const t of p.excl) if(hay.includes(t)) return false;
-  const f=p.fields;
-  if(f.severity&&it.severity!==f.severity) return false;
-  if(f.tier&&it.tier!==f.tier) return false;
-  if(f.type&&!it.type.includes(f.type)) return false;
-  if(f.sector&&!it.sector.toLowerCase().includes(f.sector)) return false;
-  if(f.region&&!it.region.toLowerCase().includes(f.region)) return false;
-  if(f.actor&&!it.actor.toLowerCase().includes(f.actor)) return false;
-  if(f.source&&!it.source.toLowerCase().includes(f.source)) return false;
-  if(f.mitre&&!(it.mitre||[]).some(m=>m.toLowerCase().startsWith(f.mitre))) return false;
-  if(f.after&&new Date(it.date)<new Date(f.after)) return false;
-  if(f.before&&new Date(it.date)>new Date(f.before)) return false;
-  return true;
+function activeActors(items){const m={};items.forEach(i=>{const a=actorOf(i);if(a!=='Unattributed')m[a]=(m[a]||0)+1});return Object.entries(m).sort((a,b)=>b[1]-a[1])}
+function renderSummary(){
+  const now=Date.now(), week=d=>now-new Date(d)<=7*DAY;
+  const crit=DATA.filter(d=>d.severity==='critical');
+  const iocs=DATA.filter(d=>d.ioc);
+  const recent=DATA.filter(d=>week(d.date));
+  const index=recent.length?Math.round(sum(recent.map(score))/recent.length):0;
+  const wc=weeklyCounts(DATA,12), fc=forecast(wc.counts);
+  const slope=fc?fc.b:null;
+  const actors=activeActors(DATA), tops=topTechniques(DATA,3);
+  const sevCounts=['critical','high','medium','low'].map(s=>DATA.filter(d=>d.severity===s).length);
+  $('k_items').textContent=DATA.length;
+  $('k_items_s').textContent=`${ARTICLES.length} articles · ${SOURCES.length} configured sources`;
+  $('k_crit').textContent=crit.length;
+  $('k_crit_s').textContent=`${crit.filter(d=>d.tier==='unverified').length} of them unverified`;
+  $('k_iocs').textContent=iocs.length;
+  $('k_iocs_s').textContent=`${new Set(iocs.map(d=>d.ioc)).size} distinct values`;
+  $('k_index').textContent=index;
+  $('k_index_bar').style.width=index+'%';
+
+  const lines=[];
+  lines.push(`${DATA.length} intelligence items and ${ARTICLES.length} news articles are in the current view. ${recent.length} items were reported in the last 7 days.`);
+  if(crit.length) lines.push(`${crit.length} items are rated critical; ${crit.filter(d=>d.tier==='verified').length} of them come from verified sources.`);
+  if(tops.length) lines.push(`Most observed technique: ${techName(tops[0][0])} (${tops[0][0]}, ${tops[0][1]} items).`);
+  if(actors.length) lines.push(`Most active tracked actor: ${actors[0][0]} (${actors[0][1]} items). Actor names are as attributed by the sources.`);
+  if(fc) lines.push(`Weekly volume is ${slope>0.5?'rising':slope<-0.5?'falling':'broadly flat'} (trend ${slope>=0?'+':''}${slope.toFixed(1)} items/week). Projected for the next 4 weeks: about ${Math.round(sum(fc.out.map(o=>o.yhat)))} items.`);
+  else lines.push('Not enough weekly history to project a trend yet.');
+  $('execNarr').innerHTML=lines.map(l=>`<li>${esc(l)}</li>`).join('');
+
+  const recs=[];
+  const exploited=DATA.filter(d=>d.type==='vuln'&&d.tier==='verified'&&(d.severity==='critical'||d.severity==='high'));
+  if(exploited.length) recs.push([1,'Patch the exploited vulnerabilities first.',`${exploited.length} verified critical or high vulnerabilities are in the dataset. Check internet-facing systems against them before anything else.`]);
+  const shell=DATA.filter(d=>d.tier==='trusted'&&d.ioc&&iocType(d.ioc)!=='cve');
+  if(shell.length) recs.push([2,'Block or alert on trusted indicators after a check.',`${shell.length} trusted indicators are available. Corroborate them against your own logs before blocking at scale.`]);
+  const leaks=DATA.filter(d=>d.type==='leak');
+  if(leaks.length) recs.push([2,'Verify leak-site claims before acting on them.',`${leaks.length} claims are unverified. Confirm with the affected organisation or CERT-In before any response that depends on them.`]);
+  if(tops.some(t=>t[0].startsWith('T1566')||t[0]==='T1190')) recs.push([2,'Review internet-facing services and phishing defences.',`The most common techniques include initial-access techniques (${tops.filter(t=>t[0].startsWith('T1566')||t[0]==='T1190').map(t=>t[0]).join(', ')}). Confirm MFA and patch levels on remote-access and mail systems.`]);
+  if(!recs.length) recs.push([3,'Load more intelligence.','The current dataset is too small for recommendations. Sync live intel or import a feed.']);
+  $('recs').innerHTML=recs.map(([p,t,d])=>`<li class="pri-${p}"><b>${esc(t)}</b><div class="muted small" style="margin-top:3px">${esc(d)}</div></li>`).join('');
+
+  svgBar($('chSev'),['Critical','High','Medium','Low'],sevCounts,['#f43f5e','#fb923c','#facc15','#60a5fa']);
+  $('lgSev').innerHTML='';
+  const tierKeys=['verified','trusted','unverified','untrusted'];
+  svgDonut($('chTier'),tierKeys.map(t=>TIERS[t]),tierKeys.map(t=>DATA.filter(d=>d.tier===t).length),tierKeys.map(t=>TIERCOL[t]));
+
+  const top=[...DATA].sort((a,b)=>score(b)-score(a)||(new Date(b.date)-new Date(a.date))).slice(0,8);
+  $('topT').innerHTML=`<thead><tr><th>Score</th><th>Item</th><th>Trust</th><th>Source</th></tr></thead><tbody>`+
+    (top.map(d=>`<tr data-open="${esc(d.id)}"><td class="mono">${Math.round(score(d))}</td><td class="t">${esc(d.title)} ${isSynth(d)}</td><td>${tierChip(d.tier)}</td><td class="small">${esc(d.source)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">No items.</td></tr>')+'</tbody>';
 }
-const sorted=arr=>[...arr].sort((a,b)=>(SEV_ORDER[b.severity]-SEV_ORDER[a.severity])||(new Date(b.date)-new Date(a.date)));
+RENDER.summary=renderSummary;
 
 /* ==================================================================
-   OVERVIEW
+   THREAT FEED
    ================================================================== */
-function renderOverview(){
-  const now=Date.now(), day=864e5;
-  const total=DATA.length;
-  const ch=DATA.filter(d=>d.severity==='critical'||d.severity==='high').length;
-  const ver=DATA.filter(d=>d.tier==='verified').length;
-  const last24=DATA.filter(d=>now-new Date(d.date)<day).length;
-  const srcOnline=(FEED_META&&FEED_META.sources)?FEED_META.sources.filter(s=>s.status==='ok').length:null;
-  document.getElementById('k1').textContent=total.toLocaleString();
-  document.getElementById('k1s').textContent=DATA.some(d=>d.synthetic)?'Includes sample records':'Live ingested records';
-  document.getElementById('k2').textContent=ch.toLocaleString();
-  document.getElementById('k2s').textContent=total?Math.round(ch/total*100)+'% of intel':'';
-  document.getElementById('k3').textContent=total?Math.round(ver/total*100)+'%':'0%';
-  document.getElementById('k3s').textContent=ver+' verified items';
-  document.getElementById('k4').textContent=last24;
-  document.getElementById('k4s').textContent='new items in 24 h';
-  document.getElementById('k5').textContent=srcOnline===null?'n/a':srcOnline;
-  document.getElementById('k5s').textContent=FEED_META?'from last collector run':'no live feed loaded';
-  const banner=document.getElementById('bannerOv');
-  banner.innerHTML = DATA.some(d=>d.synthetic)
-    ? `<div class="banner"><i class="fa-solid fa-flask"></i><div><b>Sample dataset loaded.</b> Records tagged SAMPLE are synthetic and exist to exercise the interface. Run <span class="mono">threatintflux_collector.py</span> and import its feed file for live intelligence.</div></div>`
-    : `<div class="banner ok"><i class="fa-solid fa-circle-check"></i><div>Live dataset loaded${FEED_META?' · generated '+esc(new Date(FEED_META.generated_at).toLocaleString()):''}.</div></div>`;
-  document.getElementById('dsLabel').textContent='Dataset: '+(DATA.some(d=>d.synthetic)?'sample':'live')+' · '+total+' items';
-  document.getElementById('nFeed').textContent=total;
-  document.getElementById('nAct').textContent=new Set(DATA.map(d=>d.actor)).size;
-  document.getElementById('nVuln').textContent=DATA.filter(d=>d.type==='vuln').length;
-  document.getElementById('nIoc').textContent=DATA.filter(d=>d.ioc).length;
-  document.getElementById('nLeak').textContent=DATA.filter(d=>d.type==='leak').length;
-  document.getElementById('liveTxt').textContent=DATA.some(d=>d.synthetic)?'Sample dataset':'Live dataset';
-  document.getElementById('liveDot').className='dot'+(DATA.some(d=>d.synthetic)?' warn':'');
-  // timeline
-  const days=[...Array(30)].map((_,i)=>{const d=new Date(now-(29-i)*day);return d.toISOString().slice(0,10)});
-  const byDay=Object.fromEntries(days.map(d=>[d,{total:0,crit:0}]));
-  DATA.forEach(d=>{const k=d.date.slice(0,10); if(byDay[k]){byDay[k].total++; if(d.severity==='critical')byDay[k].crit++}});
-  mkChart('chTimeline',{type:'line',data:{labels:days.map(d=>d.slice(5)),datasets:[
-    {label:'All intel',data:days.map(d=>byDay[d].total),borderColor:'#22d3ee',backgroundColor:'rgba(34,211,238,.12)',fill:true,tension:.35,pointRadius:0,borderWidth:2},
-    {label:'Critical',data:days.map(d=>byDay[d].crit),borderColor:'#ff3b5c',backgroundColor:'rgba(255,59,92,.08)',fill:true,tension:.35,pointRadius:0,borderWidth:2}]},
-    options:baseOpts({legend:true})});
-  const cnt=(k)=>DATA.reduce((m,d)=>{m[d[k]]=(m[d[k]]||0)+1;return m},{});
-  const sv=cnt('severity');
-  mkChart('chSev',{type:'doughnut',data:{labels:['Critical','High','Medium','Low'],datasets:[{data:['critical','high','medium','low'].map(k=>sv[k]||0),backgroundColor:['#ff3b5c','#ff8a3d','#f5c542','#34d399'],borderColor:'#0c1729',borderWidth:3}]},options:baseOpts({legend:true,cutout:'66%'})});
-  const sec=Object.entries(cnt('sector')).sort((a,b)=>b[1]-a[1]);
-  mkChart('chSector',{type:'bar',data:{labels:sec.map(s=>s[0]),datasets:[{data:sec.map(s=>s[1]),backgroundColor:'rgba(59,130,246,.75)',borderRadius:6}]},options:baseOpts({indexAxis:'y'})});
-  const tr=cnt('tier');
-  mkChart('chTier',{type:'bar',data:{labels:Object.values(TIERS),datasets:[{data:Object.keys(TIERS).map(k=>tr[k]||0),backgroundColor:['#10b981','#38bdf8','#f59e0b','#ef4444'],borderRadius:6}]},options:baseOpts({})});
-  // priority
-  const pri=sorted(DATA.filter(d=>(d.severity==='critical'||d.severity==='high')&&d.tier!=='untrusted')).slice(0,8);
-  document.getElementById('priority').innerHTML = pri.length? `<div class="tbl-wrap" style="max-height:340px"><table><tbody>${pri.map(itemRow).join('')}</tbody></table></div>` : '<div class="empty">No priority items.</div>';
-}
-function baseOpts(o={}){
-  return {responsive:true,maintainAspectRatio:false,animation:{duration:500},
-    plugins:{legend:{display:!!o.legend,position:'bottom',labels:{color:'#9fb0cc',boxWidth:10,font:{family:'Inter',size:11}}},tooltip:{backgroundColor:'#0b1830',borderColor:'#1f3660',borderWidth:1,titleColor:'#e6edf9',bodyColor:'#9fb0cc'}},
-    scales:o.cutout?undefined:{x:{ticks:{color:'#63779a',font:{size:10}},grid:{color:'#12223d'}},y:{ticks:{color:'#63779a',font:{size:10}},grid:{color:'#12223d'}}},
-    cutout:o.cutout,indexAxis:o.indexAxis};
-}
-function mkChart(id,cfg){
-  const canvas=document.getElementById(id);
-  if(!canvas) return;
-  if(chartRefs[id]){chartRefs[id].destroy();delete chartRefs[id]}
-  if(typeof Chart==='undefined'){
-    // Chart.js failed to load (offline or CDN blocked). Show a note once; never remove the canvas node.
-    if(!canvas.dataset.fallback){
-      canvas.dataset.fallback='1';
-      canvas.insertAdjacentHTML('afterend','<div class="empty" style="padding:16px">Chart library unavailable. Charts need the Chart.js CDN.</div>');
-      canvas.style.display='none';
-    }
-    return;
-  }
-  chartRefs[id]=new Chart(canvas,cfg);
-}
-function itemRow(d){
-  return `<tr onclick="openItem('${esc(d.id)}')"><td>${sevChip(d.severity)}</td><td class="t">${esc(d.title)} ${isSynth(d)}</td><td><span class="tag">${esc(d.type)}</span></td><td>${tierChip(d.tier)}</td><td>${esc(d.source)}</td><td>${esc(d.sector)}</td><td>${esc(d.region)}</td><td class="mono">${fmtD(d.date)}</td></tr>`;
-}
-const HEAD='<thead><tr><th>Severity</th><th>Title</th><th>Type</th><th>Trust</th><th>Source</th><th>Sector</th><th>Region</th><th>Date</th></tr></thead>';
-
-/* ==================================================================
-   FEED
-   ================================================================== */
-function populateFilters(){
-  const fill=(id,vals,label)=>{const s=document.getElementById(id);const cur=s.value;s.innerHTML=`<option value="">${label}</option>`+[...new Set(vals)].sort().map(v=>`<option>${esc(v)}</option>`).join('');s.value=cur};
-  fill('fType',DATA.map(d=>d.type),'All types');
-  fill('fSector',DATA.map(d=>d.sector),'All sectors');
-  fill('fRegion',DATA.map(d=>d.region),'All regions');
-}
-function setFilter(o){if(o.severity!==undefined)document.getElementById('fSev').value=o.severity;renderFeed()}
+function itemRow(d){return `<tr data-open="${esc(d.id)}"><td>${sevChip(d.severity)}</td><td class="t">${esc(d.title)} ${isSynth(d)}</td><td class="small">${esc(d.type)}</td><td>${tierChip(d.tier)}</td><td class="small">${esc(d.source)}</td><td class="small">${esc(d.sector||'')}</td><td class="mono small">${fmtD(d.date)}</td></tr>`}
+const FEED_HEAD='<thead><tr><th>Severity</th><th>Title</th><th>Type</th><th>Trust</th><th>Source</th><th>Sector</th><th>Date</th></tr></thead>';
 function renderFeed(){
-  populateFilters();
-  const txt=document.getElementById('fText').value.trim().toLowerCase();
-  const sev=document.getElementById('fSev').value, tier=document.getElementById('fTier').value, type=document.getElementById('fType').value, sec=document.getElementById('fSector').value, reg=document.getElementById('fRegion').value;
-  const rows=sorted(DATA.filter(d=>(!txt||matches(d,parseQuery(txt)))&&(!sev||d.severity===sev)&&(!tier||d.tier===tier)&&(!type||d.type===type)&&(!sec||d.sector===sec)&&(!reg||d.region===reg)));
-  document.getElementById('fCount').textContent=rows.length+' of '+DATA.length+' items';
-  document.getElementById('feedBody').innerHTML=rows.slice(0,800).map(itemRow).join('')||`<tr><td colspan="8" class="empty">No items match these filters.</td></tr>`;
-}
-function openItem(id){
-  const d=DATA.find(x=>x.id===id); if(!d) return;
-  document.getElementById('drawer').innerHTML=`
-    <div class="drawer-h"><h3>${esc(d.id)}</h3><button class="iconbtn" onclick="closeDrawer()"><i class="fa-solid fa-xmark"></i></button></div>
-    <div class="drawer-b">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${sevChip(d.severity)}${tierChip(d.tier)}<span class="tag">${esc(d.type)}</span>${isSynth(d)}</div>
-      <h2 style="font-size:18px;line-height:1.35;margin-bottom:14px">${esc(d.title)}</h2>
-      <p class="note" style="font-size:13px;color:var(--txt2);margin-bottom:18px">${esc(d.summary)}</p>
-      <div class="kv">
-        <div>Source</div><div>${esc(d.source)}</div>
-        <div>Actor</div><div>${esc(d.actor)}</div>
-        <div>Sector</div><div>${esc(d.sector)}</div>
-        <div>Region</div><div>${esc(d.region)}</div>
-        <div>Observed</div><div class="mono">${new Date(d.date).toUTCString()}</div>
-        <div>Indicator</div><div class="mono">${esc(d.ioc||'-')}</div>
-        <div>MITRE</div><div>${(d.mitre||[]).map(m=>`<span class="tag" style="margin:2px">${esc(m)}</span>`).join('')||'-'}</div>
-      </div>
-      <div style="margin-top:22px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn ghost" onclick="pivot('actor','${esc(d.actor)}')"><i class="fa-solid fa-user-secret"></i> Pivot: actor</button>
-        <button class="btn ghost" onclick="pivot('sector','${esc(d.sector)}')"><i class="fa-solid fa-building-shield"></i> Pivot: sector</button>
-      </div>
-    </div>`;
-  document.getElementById('drawer').classList.add('on');document.getElementById('scrim').classList.add('on');
-}
-function closeDrawer(){document.getElementById('drawer').classList.remove('on');document.getElementById('scrim').classList.remove('on')}
-function pivot(f,v){closeDrawer();go('search');document.getElementById('sQuery').value=`${f}:"${v}"`;runSearch()}
-
-/* ==================================================================
-   SEARCH
-   ================================================================== */
-function runSearch(){
-  const q=document.getElementById('sQuery').value.trim();
+  const q=$('fq').value.trim(), sev=$('fSev').value, tier=$('fTier').value, type=$('fType').value;
   const p=parseQuery(q);
-  const rows=sorted(DATA.filter(d=>matches(d,p)));
-  document.getElementById('sResults').innerHTML=`
-    <div class="panel"><div class="panel-h"><h3><i class="fa-solid fa-list"></i>${rows.length} result${rows.length===1?'':'s'}</h3><span class="note mono">${esc(q||'(all)')}</span></div>
-    <div class="tbl-wrap">${rows.length?`<table>${HEAD}<tbody>${rows.slice(0,500).map(itemRow).join('')}</tbody></table>`:'<div class="empty">No matches. Broaden the query or remove a field filter.</div>'}</div></div>`;
+  const rows=sorted(DATA.filter(d=>(!sev||d.severity===sev)&&(!tier||d.tier===tier)&&(!type||d.type===type)&&matches(d,p)));
+  $('feedT').innerHTML=FEED_HEAD+`<tbody>${rows.slice(0,400).map(itemRow).join('')}</tbody>`+(rows.length?'':'<tbody><tr><td colspan="7" class="empty">No matches. Broaden the search or clear a filter.</td></tr></tbody>');
+  $('feedCount').textContent=`${rows.length} matching item${rows.length===1?'':'s'}${rows.length>400?' (showing first 400)':''}`;
+}
+RENDER.feed=renderFeed;
+
+/* ==================================================================
+   ATTACK NEWS
+   ================================================================== */
+function renderNews(){
+  const q=($('nq').value||'').toLowerCase().trim(), tier=$('nTier').value;
+  const rows=ARTICLES.filter(a=>(!tier||a.tier===tier)&&(!q||[a.title,a.source,(a.tags||[]).join(' ')].join(' ').toLowerCase().includes(q)))
+    .sort((a,b)=>new Date(b.published)-new Date(a.published));
+  $('newsList').innerHTML=rows.length?rows.slice(0,200).map(a=>`<div class="src" style="margin-bottom:10px;padding:14px 16px">
+      <div class="row" style="justify-content:space-between;align-items:flex-start">
+        <div class="row small muted">${tierChip(a.tier)}<span>${esc(a.source)}</span><span>·</span><span class="mono">${fmtD(a.published)}</span></div>
+      </div>
+      <div style="font-weight:650;font-size:15px;margin:8px 0 4px"><a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a>${isSynth(a)}</div>
+      <div class="muted small">${esc(a.summary||'')}</div>
+      ${(a.tags||[]).length?`<div style="margin-top:6px">${a.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>`:''}
+    </div>`).join(''):`<div class="empty">${ARTICLES.length?'No articles match the filter.':'No articles yet. Run a live sync with the companion running, or import a feed that includes articles.'}</div>`;
+}
+RENDER.news=renderNews;
+
+/* ==================================================================
+   IOCs
+   ================================================================== */
+function iocType(v){
+  v=String(v||'').trim();
+  if(/^CVE-\d{4}-\d{4,}$/i.test(v)) return 'cve';
+  if(/^https?:\/\//i.test(v)) return 'url';
+  if(/^\d{1,3}(\.\d{1,3}){3}$/.test(v)) return 'ipv4';
+  if(v.includes(':')&&/^[0-9a-f:]+$/i.test(v)) return 'ipv6';
+  if(/^([a-f0-9]{32}|[a-f0-9]{40}|[a-f0-9]{64})$/i.test(v)) return 'hash';
+  if(/^(?=.{1,253}$)([a-z0-9-]+\.)+[a-z]{2,}$/i.test(v)) return 'domain';
+  return v?'other':'';
+}
+function iocRows(){
+  const q=($('iq')?.value||'').toLowerCase().trim(), t=$('iType')?.value||'';
+  return DATA.filter(d=>d.ioc).map(d=>({...d,_t:iocType(d.ioc)}))
+    .filter(d=>(!t||d._t===t)&&(!q||[d.ioc,d.title,d.source].join(' ').toLowerCase().includes(q)));
+}
+function renderIocs(){
+  const rows=sorted(iocRows());
+  $('iocT').innerHTML=`<thead><tr><th>Value</th><th>Type</th><th>Title</th><th>Trust</th><th>Severity</th><th>Source</th><th>Seen</th></tr></thead><tbody>`+
+    (rows.slice(0,500).map(d=>`<tr data-open="${esc(d.id)}"><td class="mono t">${esc(d.ioc)}</td><td class="small">${esc(d._t)}</td><td class="t">${esc(d.title)} ${isSynth(d)}</td><td>${tierChip(d.tier)}</td><td>${sevChip(d.severity)}</td><td class="small">${esc(d.source)}</td><td class="mono small">${fmtD(d.date)}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">No indicators match.</td></tr>')+'</tbody>';
+  $('iocNote').textContent=`${rows.length} indicator${rows.length===1?'':'s'} shown. CVE references are vulnerabilities, not indicators, so they are excluded from STIX export.`;
+}
+RENDER.iocs=renderIocs;
+function csvCell(v){const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+function exportIocCsv(){
+  const rows=DATA.filter(d=>d.ioc).map(d=>[iocType(d.ioc),d.ioc,d.severity,d.tier,d.source,d.date,d.synthetic?'SAMPLE':'']);
+  const csv=[['type','value','severity','tier','source','date','flag'],...rows].map(r=>r.map(csvCell).join(',')).join('\n');
+  download(`threatintflux_iocs_${stamp()}.csv`,'text/csv',csv);
+}
+function stixPattern(type,v){
+  const q=String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  switch(type){
+    case 'ipv4': return `[ipv4-addr:value = '${q}']`;
+    case 'ipv6': return `[ipv6-addr:value = '${q}']`;
+    case 'domain': return `[domain-name:value = '${q}']`;
+    case 'url': return `[url:value = '${q}']`;
+    case 'hash': return `[file:hashes.'${v.length===32?'MD5':v.length===40?'SHA-1':'SHA-256'}' = '${q}']`;
+  }
+  return null;
+}
+function uuid(){return (self.crypto&&crypto.randomUUID)?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)})}
+function exportStix(){
+  const now=new Date().toISOString(), objects=[];
+  let skipped=0;
+  DATA.forEach(d=>{
+    const t=iocType(d.ioc); const pat=stixPattern(t,d.ioc||'');
+    if(!pat){skipped++;return}
+    const obj={type:'indicator',spec_version:'2.1',id:'indicator--'+uuid(),created:now,modified:now,
+      name:d.title,pattern:pat,pattern_type:'stix',valid_from:new Date(d.date).toISOString(),
+      labels:[d.type,d.severity],confidence:({verified:85,trusted:70,unverified:40,untrusted:10})[d.tier]??10,
+      external_references:[{source_name:d.source}]};
+    if(d.synthetic) obj.x_threatintflux_synthetic=true;
+    objects.push(obj);
+  });
+  const bundle={type:'bundle',id:'bundle--'+uuid(),objects};
+  download(`threatintflux_stix_${stamp()}.json`,'application/json',JSON.stringify(bundle,null,2));
+  toast(`STIX bundle: ${objects.length} indicators${skipped?` (${skipped} non-indicator items skipped)`:''}.`);
 }
 
 /* ==================================================================
-   MITRE
+   IOAs
    ================================================================== */
-/* Techniques for a tactic: the collector's full ATT&CK list when loaded, otherwise the built-in subset. */
+function renderIoas(){
+  const now=Date.now();
+  const rowsData=IOAS.map(a=>{
+    const hits=DATA.filter(d=>(d.mitre||[]).includes(a.tech));
+    const recent=hits.filter(d=>now-new Date(d.date)<=7*DAY).length;
+    return {...a,hits:hits.length,recent,items:hits};
+  });
+  const covered=rowsData.filter(r=>r.hits>0).length;
+  $('ioaN').textContent=IOAS.length;
+  $('ioaCov').textContent=`${covered} / ${IOAS.length}`;
+  $('ioaHits').textContent=sum(rowsData.map(r=>r.recent));
+  $('ioaT').innerHTML=`<thead><tr><th>ID</th><th>Behaviour to hunt</th><th>ATT&amp;CK</th><th>Severity</th><th>Data source</th><th>Items (7d)</th><th>Coverage</th></tr></thead><tbody>`+
+    rowsData.map(r=>`<tr data-ioa="${esc(r.id)}"><td class="mono small">${esc(r.id)}</td><td class="t"><b>${esc(r.name)}</b><div class="muted small">${esc(r.what)}</div></td><td class="mono small">${esc(r.tech)}</td><td>${sevChip(r.sev)}</td><td class="small">${esc(r.src)}</td><td class="mono">${r.recent} <span class="muted small">/ ${r.hits}</span></td><td>${r.hits?'<span class="chip t-verified">Observed</span>':'<span class="chip">No intel</span>'}</td></tr>`).join('')+'</tbody>';
+}
+RENDER.ioas=renderIoas;
+
+/* ==================================================================
+   ATT&CK MATRIX
+   ================================================================== */
 function techFor(tname){
   const live=FEED_META&&Array.isArray(FEED_META.mitre_techniques)?FEED_META.mitre_techniques:null;
   if(live&&live.length){
@@ -718,106 +853,200 @@ function techFor(tname){
   return TECH[tname]||[];
 }
 function renderMitre(){
-  const counts={};
-  const live=FEED_META&&Array.isArray(FEED_META.mitre_techniques)&&FEED_META.mitre_techniques.length;
-  document.getElementById('mSrc').textContent=live?`Full Enterprise ATT&CK list from the collector (${FEED_META.mitre_techniques.length} techniques).`:'Representative subset built in. Run the collector with --mitre for the full matrix.';DATA.forEach(d=>(d.mitre||[]).forEach(t=>counts[t]=(counts[t]||0)+1));
-  const mx=document.getElementById('matrix');
-  mx.innerHTML=TACTICS.map(([tid,tname])=>{
+  const counts={};DATA.forEach(d=>(d.mitre||[]).forEach(t=>counts[t]=(counts[t]||0)+1));
+  const live=Array.isArray(FEED_META.mitre_techniques)&&FEED_META.mitre_techniques.length;
+  $('mSrc').textContent=live?`Full Enterprise ATT&CK list from the collector (${FEED_META.mitre_techniques.length} techniques).`:'Representative subset built in. Run the companion sync with the MITRE option for the full matrix.';
+  $('matrix').innerHTML=TACTICS.map(([tid,tname])=>{
     const techs=techFor(tname);
-    return `<div><div class="tac ${mitreFilter===tname?'on':''}" onclick="mitreSel('${tname}')" title="${tid}">${tname}</div>`+
-      techs.map(([id,n])=>{const c=counts[id]||0;return `<div class="cell ${c>0?'hot':''}" onclick="mitreTech('${id}','${esc(n)}')"><div class="id">${id}</div><div class="nm">${esc(n)}</div><div class="n">${c} item${c===1?'':'s'}</div></div>`}).join('')+`</div>`;
+    return `<div><div class="tac ${mitreFilter===tname?'on':''}" data-tac="${esc(tname)}" title="${tid}">${esc(tname)}</div>`+
+      techs.map(([id,n])=>{const c=counts[id]||0;return `<div class="cell ${c>0?'hot':''}" data-tech="${esc(id)}" data-name="${esc(n)}"><div class="id">${esc(id)}</div><div class="nm">${esc(n)}</div><div class="n">${c} item${c===1?'':'s'}</div></div>`}).join('')+`</div>`;
   }).join('');
-  if(mitreFilter) mitreSel(mitreFilter,true);
+  if(mitreFilter) mitreSel(mitreFilter);
 }
-function mitreSel(tname){mitreFilter=tname;renderMitre();document.getElementById('mTitle').textContent='Techniques in '+tname;
+function mitreSel(tname){
+  mitreFilter=tname;
   const ids=techFor(tname).map(x=>x[0]);
   const rows=sorted(DATA.filter(d=>(d.mitre||[]).some(m=>ids.includes(m))));
-  document.getElementById('mList').innerHTML=rows.length?`<div class="tbl-wrap" style="max-height:420px"><table>${HEAD}<tbody>${rows.slice(0,200).map(itemRow).join('')}</tbody></table></div>`:'<div class="empty">No items mapped to this tactic.</div>';
+  $('mTitle').textContent='Items for '+tname;
+  $('mList').innerHTML=rows.length?`<div class="tbl-wrap" style="max-height:420px"><table>${FEED_HEAD}<tbody>${rows.slice(0,200).map(itemRow).join('')}</tbody></table></div>`:'<div class="empty">No items map to this tactic.</div>';
+  document.querySelectorAll('.tac').forEach(t=>t.classList.toggle('on',t.dataset.tac===tname));
 }
 function mitreTech(id,name){
   const rows=sorted(DATA.filter(d=>(d.mitre||[]).includes(id)));
-  document.getElementById('mTitle').textContent=`${id} · ${name}`;
-  document.getElementById('mList').innerHTML=rows.length?`<div class="tbl-wrap" style="max-height:420px"><table>${HEAD}<tbody>${rows.slice(0,200).map(itemRow).join('')}</tbody></table></div>`:'<div class="empty">No items mapped to this technique.</div>';
+  $('mTitle').textContent=`${id} · ${name}`;
+  $('mList').innerHTML=rows.length?`<div class="tbl-wrap" style="max-height:420px"><table>${FEED_HEAD}<tbody>${rows.slice(0,200).map(itemRow).join('')}</tbody></table></div>`:'<div class="empty">No items map to this technique.</div>';
 }
+RENDER.mitre=renderMitre;
 
 /* ==================================================================
-   ACTORS
+   APT TRACKER
    ================================================================== */
-function renderActors(){
-  const g={};DATA.forEach(d=>{(g[d.actor]=g[d.actor]||[]).push(d)});
-  const list=Object.entries(g).sort((a,b)=>b[1].length-a[1].length);
-  const max=list[0]?list[0][1].length:1;
-  document.getElementById('actorGrid').innerHTML=list.map(([a,items])=>{
-    const crit=items.filter(i=>i.severity==='critical').length;
-    const sectors=Object.entries(items.reduce((m,i)=>(m[i.sector]=(m[i.sector]||0)+1,m),{})).sort((x,y)=>y[1]-x[1]).slice(0,3).map(x=>x[0]);
-    const tm=[...new Set(items.flatMap(i=>i.mitre||[]))].slice(0,5);
-    return `<div class="actor" onclick="pivot('actor','${esc(a)}')">
-      <div style="display:flex;justify-content:space-between;align-items:center"><h4>${esc(a)}</h4>${isSynth(items[0])}</div>
-      <div class="note" style="margin-top:8px">${items.length} items · ${crit} critical</div>
-      <div class="bar"><i style="width:${Math.round(items.length/max*100)}%"></i></div>
-      <div style="margin-top:12px;font-size:12px;color:var(--txt2)">Sectors: ${sectors.map(esc).join(', ')}</div>
-      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">${tm.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
-    </div>`}).join('');
+function actorStats(a){
+  const items=DATA.filter(d=>actorOf(d)===a);
+  const now=Date.now();
+  const last4=items.filter(d=>now-new Date(d.date)<=28*DAY).length;
+  const prev4=items.filter(d=>now-new Date(d.date)>28*DAY&&now-new Date(d.date)<=56*DAY).length;
+  const dates=items.map(d=>new Date(d.date)).filter(d=>!isNaN(d)).sort((x,y)=>y-x);
+  return {name:a,items,total:items.length,crit:items.filter(d=>d.severity==='critical').length,
+    sectors:Object.entries(items.reduce((m,i)=>(m[i.sector]=(m[i.sector]||0)+1,m),{})).sort((x,y)=>y[1]-x[1]).slice(0,3).map(x=>x[0]),
+    regions:Object.entries(items.reduce((m,i)=>(m[i.region]=(m[i.region]||0)+1,m),{})).sort((x,y)=>y[1]-x[1]).slice(0,3).map(x=>x[0]),
+    techs:topTechniques(items,5),iocs:items.filter(d=>d.ioc).length,last:dates[0]||null,last4,prev4,
+    synthetic:items.some(d=>d.synthetic)};
 }
+function renderApt(){
+  const acts=activeActors(DATA).slice(0,12).map(([a])=>actorStats(a));
+  const top=acts.slice(0,6);
+  const wk=weeklyCounts([],12).keys;
+  if(top.length){
+    const series=top.map((s,i)=>({name:s.name,color:PALETTE[i%PALETTE.length],vals:weeklyCounts(s.items,12).counts}));
+    svgStacked($('chApt'),wk,series);
+    $('lgApt').innerHTML=series.map(s=>`<span><i style="background:${s.color}"></i>${esc(s.name)}</span>`).join('');
+  } else {$('chApt').innerHTML='<div class="empty">No attributed actors in the current dataset.</div>';$('lgApt').innerHTML=''}
+  $('actorGrid').innerHTML=acts.length?acts.map(s=>{
+    const d=s.last4-s.prev4, pct=s.prev4?Math.round(d/s.prev4*100):(s.last4?100:0);
+    return `<div class="actor" data-apt="${esc(s.name)}">
+      <div class="row" style="justify-content:space-between"><h4>${esc(s.name)}</h4>${s.synthetic?'<span class="syn">SAMPLE</span>':''}</div>
+      <div class="muted small" style="margin-top:6px">${s.total} item${s.total===1?'':'s'} · ${s.crit} critical · ${s.iocs} indicators</div>
+      <div class="muted small">Last seen ${s.last?fmtD(s.last):'—'}</div>
+      <div class="small" style="margin-top:8px">Momentum (4w vs prior 4w): <b style="color:${d>0?'var(--err)':d<0?'var(--ok)':'var(--txt2)'}">${d>0?'▲':d<0?'▼':'■'} ${pct>0?'+':''}${pct}%</b></div>
+      <div class="small muted" style="margin-top:6px">Sectors: ${s.sectors.map(esc).join(', ')||'—'}</div>
+      <div style="margin-top:8px">${s.techs.map(([t])=>`<span class="tag">${esc(t)}</span>`).join('')}</div>
+    </div>`}).join(''):'<div class="empty">No attributed actors yet.</div>';
+}
+RENDER.apt=renderApt;
+function openActor(name){
+  const s=actorStats(name);
+  const recent=sorted(s.items).slice(0,12);
+  $('drawer').innerHTML=`<div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(name)}</h2><button class="ghost" onclick="closeDrawer()">Close</button></div>
+    <div class="row" style="margin-top:8px">${s.synthetic?'<span class="syn">SAMPLE · placeholder actor</span>':''}</div>
+    <div class="dl"><div>Items</div><div>${s.total} (${s.crit} critical)</div><div>Indicators</div><div>${s.iocs}</div><div>Last seen</div><div>${s.last?fmtDT(s.last):'—'}</div><div>Sectors</div><div>${esc(s.sectors.join(', ')||'—')}</div><div>Regions</div><div>${esc(s.regions.join(', ')||'—')}</div><div>Momentum</div><div>${s.last4} in last 4 weeks, ${s.prev4} in the 4 before</div></div>
+    <h3 style="margin:14px 0 6px;font-size:13px">Techniques</h3><div>${s.techs.map(([t,c])=>`<span class="tag" data-tech-jump="${esc(t)}">${esc(t)} · ${c}</span>`).join('')||'<span class="muted">none</span>'}</div>
+    <h3 style="margin:14px 0 6px;font-size:13px">Recent activity</h3>
+    <div class="tbl-wrap" style="max-height:340px"><table>${FEED_HEAD}<tbody>${recent.map(itemRow).join('')}</tbody></table></div>
+    <p class="small muted" style="margin-top:12px">Attribution is the source's claim. Corroborate before using it in a report.</p>`;
+  openDrawer();
+}
+function openItem(id){
+  const d=DATA.find(x=>x.id===id); if(!d) return;
+  const iocs=d.ioc?`<div class="row" style="margin-top:6px"><span class="mono" style="word-break:break-all">${esc(d.ioc)}</span><button class="ghost" style="padding:4px 9px" onclick="copyText(${JSON.stringify(String(d.ioc))})">Copy</button></div>`:'<span class="muted">none</span>';
+  $('drawer').innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-start"><div>${sevChip(d.severity)} ${tierChip(d.tier)} ${isSynth(d)}</div><button class="ghost" onclick="closeDrawer()">Close</button></div>
+    <h2 style="margin:12px 0 4px;font-size:17px">${esc(d.title)}</h2>
+    <div class="dl"><div>Type</div><div>${esc(d.type)}</div><div>Source</div><div>${esc(d.source)}</div><div>Date</div><div>${fmtDT(d.date)}</div><div>Actor</div><div>${esc(actorOf(d))}</div><div>Sector</div><div>${esc(d.sector||'—')}</div><div>Region</div><div>${esc(d.region||'—')}</div><div>ID</div><div class="mono small">${esc(d.id)}</div></div>
+    <h3 style="margin:12px 0 4px;font-size:13px">Indicator</h3>${iocs}
+    <h3 style="margin:14px 0 4px;font-size:13px">Summary</h3><p style="color:var(--txt2)">${esc(d.summary||'—')}</p>
+    <h3 style="margin:14px 0 4px;font-size:13px">ATT&amp;CK</h3><div>${(d.mitre||[]).map(m=>`<span class="tag" data-tech-jump="${esc(m)}">${esc(m)} ${esc(techName(m))}</span>`).join('')||'<span class="muted">none</span>'}</div>
+    <p class="small muted" style="margin-top:16px">${d.tier==='unverified'?'Unverified: monitor only, do not act on this alone.':d.tier==='untrusted'?'Untrusted: excluded from reports.':'Verify against your own telemetry before acting.'}</p>`;
+  openDrawer();
+}
+function openDrawer(){$('drawer').classList.add('on');$('scrim').classList.add('on')}
+function closeDrawer(){$('drawer').classList.remove('on');$('scrim').classList.remove('on')}
+function copyText(t){try{navigator.clipboard.writeText(t);toast('Copied.')}catch(e){toast('Copy not available here.')}}
 
 /* ==================================================================
-   VULNS / IOCS / LEAKS / SOURCES
+   FORESIGHT
    ================================================================== */
-function renderVulns(){
-  const rows=sorted(DATA.filter(d=>d.type==='vuln'||d.type==='advisory'));
-  document.getElementById('vulnBody').innerHTML=rows.map(d=>`<tr onclick="openItem('${esc(d.id)}')"><td>${sevChip(d.severity)}</td><td class="t">${esc(d.ioc||d.id)} · ${esc(d.title)} ${isSynth(d)}</td><td>${tierChip(d.tier)}</td><td>${esc(d.source)}</td><td>${esc(d.sector)}</td><td class="mono">${fmtD(d.date)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">None</td></tr>';
-}
-function renderIocs(){
-  const rows=sorted(DATA.filter(d=>d.ioc));
-  document.getElementById('iocBody').innerHTML=rows.slice(0,500).map(d=>`<tr onclick="openItem('${esc(d.id)}')"><td class="mono t">${esc(d.ioc)}</td><td>${esc(d.title)} ${isSynth(d)}</td><td>${tierChip(d.tier)}</td><td>${sevChip(d.severity)}</td><td>${esc(d.source)}</td><td class="mono">${fmtD(d.date)}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">None</td></tr>';
-}
-function renderLeaks(){
-  const rows=sorted(DATA.filter(d=>d.type==='leak'||d.tier==='unverified'&&d.type!=='vuln')).slice(0,60);
-  document.getElementById('leakList').innerHTML=rows.map(d=>`<div class="leak" onclick="openItem('${esc(d.id)}')" style="cursor:pointer">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">${sevChip(d.severity)}${tierChip(d.tier)}${isSynth(d)}<span class="mono note" style="margin-left:auto">${fmtD(d.date)}</span></div>
-    <div style="font-weight:600;margin-top:8px">${esc(d.title)}</div>
-    <div class="note" style="margin-top:4px">${esc(d.source)} · ${esc(d.region)} · ${esc(d.sector)}</div></div>`).join('')||'<div class="empty">No leak items.</div>';
-}
-function renderSources(){
-  const meta=(FEED_META&&FEED_META.sources)||[];
-  const status={};meta.forEach(x=>status[x.name]=x);
-  const okN=meta.filter(x=>x.status==='ok').length;
-  document.getElementById('srcHealth').innerHTML=FEED_META
-    ?`<i class="fa-solid fa-heart-pulse"></i>&nbsp; ${okN} of ${meta.length} sources healthy in the last collector run · generated ${esc(new Date(FEED_META.generated_at).toLocaleString())}`
-    :'No collector run loaded. Place threatintflux_feed.json beside index.html, or import it in Settings.';
-  document.getElementById('srcGrid').innerHTML=SOURCES.map(s=>{
-    const st=status[s.name];
-    const live=st?(st.status==='ok'?`<span class="chip t-verified">Online · ${st.count?st.count+' items':'no items'}</span>`:`<span class="chip t-untrusted">Error</span>`):`<span class="chip t-unverified">Not collected</span>`;
-    const err=st&&st.status==='error'?`<p class="note" style="margin-top:8px;word-break:break-word">${esc(st.error||'Unknown error')}</p>`:'';
-    return `<div class="src"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h4>${esc(s.name)}</h4>${tierChip(s.tier)}</div>
-      <div class="tag" style="display:inline-block;margin-top:4px">${esc(s.kind)}</div>
-      <p>${esc(s.desc)}</p>
-      <div class="row">${live}</div>${err}
-      <div class="row"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open source</a></div></div>`}).join('');
-}
-
-/* ==================================================================
-   LIVE REFRESH (browser-side attempt; CORS may block some sources)
-   ================================================================== */
-async function refreshLive(){
-  toast('<i class="fa-solid fa-rotate fa-spin"></i>&nbsp; Checking live feed file...');
-  try{
-    const r=await fetch('threatintflux_feed.json',{cache:'no-store'});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const feed=await r.json();
-    if(!feed.items) throw new Error('Invalid feed file');
-    DATA=feed.items;FEED_META={generated_at:feed.generated_at,sources:feed.sources||[],mitre_techniques:feed.mitre_techniques||null};save();
-    afterLoad();toast(`<i class="fa-solid fa-circle-check" style="color:var(--verified)"></i>&nbsp; Loaded ${DATA.length} items from threatintflux_feed.json`);
-  }catch(e){
-    toast(`<i class="fa-solid fa-triangle-exclamation" style="color:var(--unverified)"></i>&nbsp; No live feed found (${esc(e.message)}). Run the collector, then place threatintflux_feed.json beside this file or import it in Settings.`);
+function renderForesight(){
+  const wc=weeklyCounts(DATA,12), fc=forecast(wc.counts);
+  if(!fc){
+    $('fTrend').textContent='—'; $('fSlope').textContent='Needs at least 3 weeks of dated items.';
+    $('fProj').textContent='—'; $('fProjS').textContent='';
+    $('chFore').innerHTML='<div class="empty">Not enough weekly history to project. Add more dated intel or sync a longer window.</div>';
+  } else {
+    const trend=fc.b>0.5?'Rising':fc.b<-0.5?'Falling':'Flat';
+    $('fTrend').textContent=trend; $('fTrend').style.color=fc.b>0.5?'var(--err)':fc.b<-0.5?'var(--ok)':'var(--txt)';
+    $('fSlope').textContent=`${fc.b>=0?'+':''}${fc.b.toFixed(2)} items/week (fit on ${Math.min(8,wc.counts.length)} weeks)`;
+    const proj=sum(fc.out.map(o=>o.yhat)), lo=sum(fc.out.map(o=>o.lo)), hi=sum(fc.out.map(o=>o.hi));
+    $('fProj').textContent=Math.round(proj);
+    $('fProjS').textContent=`approx. range ${Math.round(lo)}–${Math.round(hi)}`;
+    svgForecast($('chFore'),wc.keys,wc.counts,fc.out);
   }
+  // technique momentum
+  const techIds=[...new Set(DATA.flatMap(d=>d.mitre||[]))];
+  const rise=techIds.map(id=>{
+    const items=DATA.filter(d=>(d.mitre||[]).includes(id));
+    if(items.length<3) return null;
+    const w=weeklyCounts(items,12).counts, f=forecast(w);
+    if(!f) return null;
+    return {id,name:techName(id),slope:f.b,last4:sum(w.slice(-4)),proj:sum(f.out.map(o=>o.yhat)),total:items.length};
+  }).filter(Boolean).sort((a,b)=>b.slope-a.slope);
+  $('fRise').textContent=rise.filter(r=>r.slope>0.05).length;
+  $('riseT').innerHTML=`<thead><tr><th>Technique</th><th>Trend /wk</th><th>Last 4 wk</th><th>Projected 4 wk</th><th>Direction</th></tr></thead><tbody>`+
+    (rise.slice(0,12).map(r=>`<tr data-tech-jump="${esc(r.id)}"><td><span class="mono small">${esc(r.id)}</span> ${esc(r.name)}</td><td class="mono">${r.slope>=0?'+':''}${r.slope.toFixed(2)}</td><td class="mono">${r.last4}</td><td class="mono">${r.proj.toFixed(1)}</td><td>${r.slope>0.05?'<span class="chip sev-high">rising</span>':r.slope<-0.05?'<span class="chip t-verified">falling</span>':'<span class="chip">flat</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Needs at least 3 items per technique.</td></tr>')+'</tbody>';
+  // actor momentum
+  const now=Date.now();
+  const gaining=activeActors(DATA).map(([a])=>actorStats(a)).filter(s=>s.last4>s.prev4&&s.last4>=2).length;
+  $('fAct').textContent=gaining;
+  // scenarios
+  const base=fc?sum(fc.out.map(o=>o.yhat)):0;
+  const sc=[['Volume falls 25%',.75],['Baseline (trend continues)',1],['Volume rises 25%',1.25],['Volume rises 50%',1.5]];
+  $('scenT').innerHTML=`<thead><tr><th>Scenario</th><th>4-week items</th><th>Per week</th></tr></thead><tbody>`+
+    sc.map(([n,m])=>`<tr><td>${esc(n)}</td><td class="mono">${Math.round(base*m)}</td><td class="mono">${(base*m/4).toFixed(1)}</td></tr>`).join('')+'</tbody>';
 }
-function afterLoad(){populateFilters();go(document.querySelector('.view.on')?.id.replace('v-','')||'overview')}
+RENDER.foresight=renderForesight;
 
 /* ==================================================================
-   SETTINGS: import / export / clear / sample
+   SOURCES
    ================================================================== */
-/* Mirrors threatintflux_validate.py so browser imports and CI enforce the same schema. */
+function renderSources(){
+  const meta=FEED_META.sources||[], status={};meta.forEach(s=>status[s.name]=s);
+  const ok=meta.filter(s=>s.status==='ok').length;
+  $('srcHealth').innerHTML=FEED_META.generated_at
+    ?`${ok} of ${meta.length} sources healthy in the last sync · ${esc(fmtDT(FEED_META.generated_at))}`
+    :'No sync recorded for this dataset. Sync live intel from Settings, or use the sample.';
+  $('srcGrid').innerHTML=SOURCES.map(s=>{
+    const st=status[s.name];
+    const live=st?(st.status==='ok'?`<span class="chip t-verified">Online · ${st.count?st.count+' items':'no items'}</span>`:'<span class="chip t-untrusted">Error</span>'):'<span class="chip t-unverified">Not collected</span>';
+    const err=st&&st.status==='error'?`<p class="small" style="color:var(--err);word-break:break-word">${esc(st.error||'Unknown error')}</p>`:'';
+    return `<div class="src"><div class="row" style="justify-content:space-between;align-items:flex-start"><h4>${esc(s.name)}</h4>${tierChip(s.tier)}</div>
+      <div class="tag" style="margin-top:6px">${esc(s.kind)}</div><p>${esc(s.desc)}</p>
+      <div class="row">${live}</div>${err}
+      <div style="margin-top:10px"><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">Open source ↗</a></div></div>`}).join('');
+}
+RENDER.sources=renderSources;
+
+/* ==================================================================
+   SETTINGS, COMPANION, SYNC
+   ================================================================== */
+function renderSettings(){
+  const dl=[['Dataset',FEED_META.origin||'sample'],['Generated',FEED_META.generated_at?fmtDT(FEED_META.generated_at):'—'],
+    ['Items',DATA.length],['Articles',ARTICLES.length],['Companion',COMPANION?'running on this machine':'not running (offline mode)'],
+    ['Live keys set',COMPANION?Object.entries(COMPANION.keys||{}).filter(([,v])=>v).map(([k])=>k).join(', ')||'none':'—']];
+  $('connDl').innerHTML=dl.map(([k,v])=>`<div>${esc(k)}</div><div>${esc(v)}</div>`).join('');
+  const btn=$('syncBtn'), top=$('syncTop');
+  btn.disabled=top.disabled=!COMPANION;
+  renderConnectivity();
+}
+function renderConnectivity(){
+  $('compDot').className='dot '+(COMPANION?'on':'off');
+  $('compTxt').textContent=COMPANION?'Companion running · live sync on':'Offline · using saved dataset';
+  $('compHint').textContent=COMPANION?'Sync pulls fresh intel through the local companion.':'Start python3 serve.py for live sync. Everything else works offline.';
+}
+async function checkCompanion(toastIt){
+  try{
+    const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),1500);
+    const r=await fetch('/api/status',{signal:ctl.signal,headers:{'X-TIF':'1'},cache:'no-store'});
+    clearTimeout(t); if(!r.ok) throw new Error('status '+r.status);
+    COMPANION=await r.json();
+  }catch(e){ COMPANION=null }
+  $('syncBtn').disabled=$('syncTop').disabled=!COMPANION;
+  renderConnectivity();
+  renderSettings();
+  if(toastIt) toast(COMPANION?'Companion is running.':'No companion found. Start it with python3 serve.py.');
+}
+async function syncLive(){
+  if(!COMPANION){toast('Live sync needs the companion. Start it with: python3 serve.py');return}
+  const days=+($('syncDays')?.value||7);
+  toast('Syncing live intel… this can take a minute.');
+  try{
+    const r=await fetch('/api/sync',{method:'POST',headers:{'Content-Type':'application/json','X-TIF':'1'},body:JSON.stringify({days})});
+    if(!r.ok) throw new Error('companion returned HTTP '+r.status);
+    applyFeed(await r.json(),'live');
+  }catch(e){toast('Sync failed: '+esc(e.message))}
+}
+
+/* ==================================================================
+   VALIDATION (mirrors threatintflux_validate.py; the companion's feed is checked again here)
+   ================================================================== */
 function validateItems(items){
   const errs=[], seen=new Set();
   const enums={type:['vuln','ioc','malware','actor','leak','campaign','advisory'],severity:['critical','high','medium','low'],tier:['verified','trusted','unverified','untrusted']};
@@ -829,8 +1058,41 @@ function validateItems(items){
     Object.entries(enums).forEach(([k,allowed])=>{if(it[k]&&!allowed.includes(it[k]))errs.push(`${w} unknown ${k} '${it[k]}'`)});
     if(it.date&&!/(Z|[+-]\d{2}:?\d{2})$/.test(String(it.date)))errs.push(`${w} date lacks timezone`);
     else if(it.date&&isNaN(Date.parse(it.date)))errs.push(`${w} date unparseable`);
+    if(it.ioc&&it.ioc.length>200) errs.push(`${w} indicator too long`);
   });
   return errs;
+}
+function validateArticles(arts){
+  const errs=[], seen=new Set();
+  if(!Array.isArray(arts)) return ['articles must be a list'];
+  arts.forEach((a,i)=>{
+    const w=`articles[${i}]`;
+    if(!a||typeof a!=='object'){errs.push(`${w} is not an object`);return}
+    ['id','title','url','source','published','tier'].forEach(k=>{if(!a[k])errs.push(`${w} missing ${k}`)});
+    if(a.id){if(seen.has(a.id))errs.push(`${w} duplicate id`);seen.add(a.id)}
+    if(a.url&&!/^https?:\/\//i.test(String(a.url)))errs.push(`${w} url must be http(s)`);
+    if(a.tier&&!['verified','trusted','unverified','untrusted'].includes(a.tier))errs.push(`${w} unknown tier`);
+    if(a.published&&!/(Z|[+-]\d{2}:?\d{2})$/.test(String(a.published)))errs.push(`${w} published lacks timezone`);
+  });
+  return errs;
+}
+// Replaces the current dataset. Imports and syncs do not merge.
+function applyFeed(feed,origin){
+  if(!feed||!Array.isArray(feed.items)) throw new Error('not a feed (no items list)');
+  const errs=[...validateItems(feed.items),...validateArticles(feed.articles||[])];
+  if(origin==='live'&&feed.items.some(i=>i.synthetic)) errs.push('a live feed must not contain synthetic items');
+  if(errs.length) throw new Error(errs.slice(0,3).join('; ')+(errs.length>3?` (+${errs.length-3} more)`:''));
+  // A sync that returns nothing (for example, every source is down) must not wipe the dataset you already have.
+  if(origin==='live'&&!feed.items.length&&!(feed.articles||[]).length){
+    const failed=(feed.sources||[]).filter(s=>s.status==='error').length;
+    toast(`Sync returned no items${failed?` (${failed} source${failed===1?'':'s'} failed)`:''}. Keeping your current dataset. See Sources for details.`);
+    FEED_META.sources=feed.sources||[]; FEED_META.generated_at=feed.generated_at||FEED_META.generated_at; save(); renderSources(); renderSettings();
+    return;
+  }
+  DATA=feed.items; ARTICLES=feed.articles||[];
+  FEED_META={origin,generated_at:feed.generated_at||null,sources:feed.sources||[],mitre_techniques:feed.mitre_techniques||null};
+  save(); renderAll();
+  toast(`Loaded ${DATA.length} items and ${ARTICLES.length} articles (${esc(origin)}).`);
 }
 function importFile(e){
   const f=e.target.files[0]; if(!f) return;
@@ -838,120 +1100,146 @@ function importFile(e){
   rd.onload=()=>{
     try{
       const o=JSON.parse(rd.result);
-      const items=Array.isArray(o)?o:o.items;
-      if(!Array.isArray(items)) throw new Error('No items array');
-      const bad=validateItems(items);
-      if(bad.length) throw new Error(bad.slice(0,3).join('; ')+(bad.length>3?` (+${bad.length-3} more)`:''));
-      const map=new Map(DATA.filter(d=>!d.synthetic).map(d=>[d.id,d]));
-      items.forEach(i=>{if(i&&i.id)map.set(i.id,i)});
-      DATA=[...map.values()].filter(x=>!x.synthetic||DATA.some(d=>d.synthetic));
-      if(o.generated_at) FEED_META={generated_at:o.generated_at,sources:o.sources||[],mitre_techniques:o.mitre_techniques||null};
-      save();afterLoad();toast(`Imported ${items.length} items.`);
-    }catch(err){toast('Import failed: '+esc(err.message))}
+      applyFeed(Array.isArray(o)?{items:o}:o,'import');
+    }catch(err){toast('Import rejected: '+esc(err.message))}
+    e.target.value='';
   };
   rd.readAsText(f);
-  e.target.value='';
 }
-function download(name,type,content){
-  const b=new Blob([content],{type});const u=URL.createObjectURL(b);
-  const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);
-}
-function exportJSON(){download(`threatintflux_${new Date().toISOString().slice(0,10)}.json`,'application/json',JSON.stringify({generated_at:new Date().toISOString(),items:DATA},null,2));toast('JSON export downloaded.')}
-function exportCSV(){
-  const cols=['id','severity','tier','type','title','source','actor','sector','region','ioc','date','synthetic'];
-  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
-  const csv=[cols.join(',')].concat(DATA.map(d=>cols.map(c=>q(d[c])).join(','))).join('\n');
-  download(`threatintflux_${new Date().toISOString().slice(0,10)}.csv`,'text/csv',csv);toast('CSV export downloaded.');
-}
-function loadSample(){if(!confirm('Replace current dataset with the synthetic sample?'))return;DATA=buildSample();FEED_META=null;save();afterLoad();toast('Sample dataset loaded.')}
-function clearAll(){if(!confirm('Remove all intel from this browser?'))return;DATA=[];FEED_META=null;save();afterLoad();toast('Dataset cleared.')}
 
 /* ==================================================================
-   EXECUTIVE REPORT (print-to-PDF, no external dependency)
+   EXPORTS & DATASET ACTIONS
    ================================================================== */
-function buildReport(){
-  const scope=document.getElementById('rScope').value, win=+document.getElementById('rWin').value;
-  const cls=esc(document.getElementById('rClass').value), who=esc(document.getElementById('rFor').value);
-  const cut=Date.now()-win*864e5;
-  let rows=DATA.filter(d=>new Date(d.date)>=cut);
-  if(scope==='verified') rows=rows.filter(d=>d.tier==='verified'||d.tier==='trusted');
-  rows=rows.filter(d=>d.tier!=='untrusted');
-  const c=k=>rows.reduce((m,d)=>(m[d[k]]=(m[d[k]]||0)+1,m),{});
-  const sv=c('severity'), tr=c('tier');
-  const pri=sorted(rows.filter(d=>d.severity==='critical'||d.severity==='high')).slice(0,20);
-  const tac=TACTICS.map(([,n])=>{const ids=(TECH[n]||[]).map(x=>x[0]);return [n,rows.filter(d=>(d.mitre||[]).some(m=>ids.includes(m))).length]}).filter(x=>x[1]>0);
-  const sectors=Object.entries(c('sector')).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const synth=rows.some(d=>d.synthetic);
-  const html=`<!doctype html><html><head><meta charset="utf-8"><title>ThreatIntFlux Executive Briefing</title>
-  <style>
-    body{font-family:Arial,Helvetica,sans-serif;color:#0f172a;margin:0;padding:40px;font-size:12px;line-height:1.5}
-    .top{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #0b3b66;padding-bottom:12px}
-    h1{margin:0;font-size:22px;color:#0b3b66} h2{font-size:14px;color:#0b3b66;border-bottom:1px solid #cbd5e1;padding-bottom:4px;margin-top:22px;text-transform:uppercase;letter-spacing:.8px}
-    .cls{background:#fef3c7;border:1px solid #f59e0b;padding:4px 10px;font-weight:700;font-size:11px}
-    .kpis{display:flex;gap:10px;margin-top:12px} .k{flex:1;border:1px solid #cbd5e1;border-radius:6px;padding:10px}
-    .k b{display:block;font-size:20px;color:#0b3b66}
-    table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px} th,td{text-align:left;padding:6px 7px;border-bottom:1px solid #e2e8f0} th{background:#0b3b66;color:#fff}
-    .sev-critical{color:#b91c1c;font-weight:700} .sev-high{color:#c2410c;font-weight:700}
-    .note{font-size:10.5px;color:#475569;margin-top:6px}
-    .warn{background:#fff7ed;border-left:4px solid #f59e0b;padding:8px 10px;margin-top:12px;font-size:11px}
-  </style></head><body>
-  <div class="top"><div><h1>ThreatIntFlux Executive Briefing</h1><div class="note">Prepared for: ${who} · Window: ${win===9999?'entire dataset':'last '+win+' days'} · Generated ${new Date().toUTCString()}</div></div><div class="cls">${cls}</div></div>
-  <h2>1. Executive summary</h2>
-  <div class="kpis">
-    <div class="k"><span>Items in scope</span><b>${rows.length}</b></div>
-    <div class="k"><span>Critical</span><b style="color:#b91c1c">${sv.critical||0}</b></div>
-    <div class="k"><span>High</span><b style="color:#c2410c">${sv.high||0}</b></div>
-    <div class="k"><span>Verified share</span><b>${rows.length?Math.round((tr.verified||0)/rows.length*100):0}%</b></div>
-  </div>
-  <p style="margin-top:12px">${rows.length} intelligence items were assessed in the window. ${sv.critical||0} are rated critical and ${sv.high||0} high. Priority should go to exploitation-relevant vulnerabilities and actor activity against the sectors listed in section 5.</p>
-  ${synth?'<div class="warn"><b>Data note:</b> this briefing includes SAMPLE records that are synthetic and must not be used for operational decisions. Re-run with live feeds before distribution.</div>':''}
-  <h2>2. Priority threats</h2>
-  <table><thead><tr><th>ID</th><th>Severity</th><th>Title</th><th>Trust</th><th>Source</th><th>Sector</th><th>Date</th></tr></thead><tbody>
-  ${pri.map(d=>`<tr><td>${esc(d.id)}</td><td class="sev-${esc(d.severity)}">${esc(d.severity)}</td><td>${esc(d.title)}</td><td>${esc(TIERS[d.tier])}</td><td>${esc(d.source)}</td><td>${esc(d.sector)}</td><td>${fmtD(d.date)}</td></tr>`).join('')||'<tr><td colspan="7">No priority items in window.</td></tr>'}
-  </tbody></table>
-  <h2>3. Trust-tier breakdown</h2>
-  <table><thead><tr><th>Tier</th><th>Items</th><th>Share</th><th>Guidance</th></tr></thead><tbody>
-  ${Object.keys(TIERS).filter(k=>k!=='untrusted').map(k=>`<tr><td>${TIERS[k]}</td><td>${tr[k]||0}</td><td>${rows.length?Math.round((tr[k]||0)/rows.length*100):0}%</td><td>${k==='verified'?'Actionable':k==='trusted'?'Corroborate before blocking':'Monitor only'}</td></tr>`).join('')}
-  </tbody></table>
-  <h2>4. MITRE ATT&amp;CK coverage</h2>
-  <table><thead><tr><th>Tactic</th><th>Mapped items</th></tr></thead><tbody>${tac.map(([n,v])=>`<tr><td>${esc(n)}</td><td>${v}</td></tr>`).join('')||'<tr><td colspan="2">No mapped items.</td></tr>'}</tbody></table>
-  <h2>5. Sector exposure</h2>
-  <table><thead><tr><th>Sector</th><th>Items</th></tr></thead><tbody>${sectors.map(([s,v])=>`<tr><td>${esc(s)}</td><td>${v}</td></tr>`).join('')}</tbody></table>
-  <h2>6. Recommended actions</h2>
-  <ol style="margin-left:18px;line-height:1.8">
-    <li>Patch or mitigate every item tagged vuln with critical or high severity and verified trust tier.</li>
-    <li>Corroborate trusted-tier indicators before enforcing blocks; monitor unverified claims only.</li>
-    <li>Brief sector owners on the top three sectors and confirm detection coverage for their mapped techniques.</li>
-    <li>Treat dark web and leak-site claims as unverified; validate with affected organisations and report to CERT-In where appropriate.</li>
-  </ol>
-  <h2>Methodology</h2>
-  <p class="note">Items are aggregated from configured sources and tagged with a trust tier. Untrusted items are excluded. Severity reflects source rating, not organisational impact. This briefing supports, but does not replace, analyst judgement.</p>
-  <script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
-  </body></html>`;
+const stamp=()=>new Date().toISOString().slice(0,10);
+function download(name,type,content){
+  const url=URL.createObjectURL(new Blob([content],{type}));
+  const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function exportJSON(){
+  const feed={generated_at:new Date().toISOString(),mode:FEED_META.origin==='sample'?'sample':'live',sources:FEED_META.sources||[],
+    items:DATA,articles:ARTICLES};
+  if(FEED_META.mitre_techniques) feed.mitre_techniques=FEED_META.mitre_techniques;
+  download(`threatintflux_feed_${stamp()}.json`,'application/json',JSON.stringify(feed,null,2));
+}
+function loadSample(){
+  if(!confirm('Replace the current dataset with the synthetic sample?')) return;
+  DATA=buildSample(); ARTICLES=sampleArticles(); FEED_META={origin:'sample',generated_at:null,sources:[]};
+  save(); renderAll(); toast('Sample dataset loaded.');
+}
+function clearAll(){
+  if(!confirm('Remove all intel from this browser?')) return;
+  DATA=[]; ARTICLES=[]; FEED_META={origin:'import',generated_at:null,sources:[]}; save(); renderAll(); toast('Dataset cleared.');
+}
+function sampleArticles(){
+  const base=Date.now();
+  const mk=(i,title,tags,sev,days)=>({id:'NEWS-SAMPLE-'+i,title:'SAMPLE: '+title,url:'https://example.com/sample-article-'+i,
+    source:'SAMPLE newsroom',tier:'unverified',published:new Date(base-days*DAY).toISOString().slice(0,19)+'+00:00',
+    summary:'Illustrative article for the demonstration dataset. Not a real publication.',tags,synthetic:true});
+  return [
+    mk(1,'Edge VPN appliance flaw reportedly exploited against unpatched devices',['Vulnerabilities','Initial Access'],'high',1),
+    mk(2,'Phishing campaign delivers macro-enabled documents to finance teams',['Phishing'],'medium',2),
+    mk(3,'Ransomware group claims data theft from a regional services provider',['Ransomware','Leak'],'high',3),
+    mk(4,'Infostealer malware sold in criminal forums targets browser sessions',['Malware'],'medium',5),
+    mk(5,'Vendor releases emergency update for remote access gateway',['Patch'],'high',6),
+    mk(6,'Analysts describe credential-harvesting kit reused across sectors',['Credentials'],'medium',9),
+  ];
+}
+// Keyboard: "/" focuses search, Escape closes the drawer.
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeDrawer();
+  if(e.key==='/'&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA'){e.preventDefault();$('globalQ').focus()}
+});
+$('globalQ').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ $('fq').value=e.target.value; go('feed'); renderFeed(); }
+});
+document.addEventListener('click',e=>{
+  const open=e.target.closest('[data-open]'); if(open){openItem(open.dataset.open);return}
+  const apt=e.target.closest('[data-apt]'); if(apt){openActor(apt.dataset.apt);return}
+  const tac=e.target.closest('[data-tac]'); if(tac){mitreSel(tac.dataset.tac);return}
+  const cell=e.target.closest('[data-tech]'); if(cell){mitreTech(cell.dataset.tech,cell.dataset.name);return}
+  const jump=e.target.closest('[data-tech-jump]'); if(jump){closeDrawer();go('mitre');mitreTech(jump.dataset.techJump,techName(jump.dataset.techJump));return}
+  const ioa=e.target.closest('[data-ioa]'); if(ioa){const r=IOAS.find(x=>x.id===ioa.dataset.ioa); if(r){closeDrawer();go('feed');$('fq').value=`mitre:${r.tech}`;renderFeed()}return}
+});
+
+/* ==================================================================
+   REPORTS (print-ready; window.print() gives PDF)
+   ================================================================== */
+function reportScopeItems(){
+  const win=+$('rWin').value, scope=$('rScope').value, now=Date.now();
+  return DATA.filter(d=>(win>=9999||now-new Date(d.date)<=win*DAY)&&(scope==='all'?d.tier!=='untrusted':(d.tier==='verified'||d.tier==='trusted')));
+}
+function printable(title,body){
   const w=window.open('','_blank');
-  if(!w){toast('Pop-up blocked. Allow pop-ups for this page to open the briefing.');return}
-  w.document.open();w.document.write(html);w.document.close();
-  toast('Briefing opened. Choose "Save as PDF" in the print dialog.');
+  if(!w){toast('Pop-up blocked. Allow pop-ups for this page to open the report.');return}
+  const css=`body{font:13px/1.5 system-ui,sans-serif;color:#0f1b2d;margin:34px;max-width:900px}h1{font-size:22px;margin:0 0 4px}h2{font-size:15px;border-bottom:2px solid #0e7490;padding-bottom:4px;margin:22px 0 8px}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}th,td{border-bottom:1px solid #d7e0ee;padding:6px 7px;text-align:left;vertical-align:top}th{background:#f2f6fb}
+    .cls{font-weight:700;letter-spacing:.5px;color:#92400e;border:1px solid #f59e0b;padding:3px 8px;display:inline-block;border-radius:4px}
+    .meta{color:#475569;font-size:12px}.sample{color:#be123c;font-weight:700}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+    .kpi{border:1px solid #d7e0ee;border-radius:8px;padding:8px 10px}.kpi b{font-size:18px;display:block}.foot{margin-top:24px;color:#64748b;font-size:11px;border-top:1px solid #d7e0ee;padding-top:8px}
+    li{margin:4px 0}`;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title><style>${css}</style></head><body>${body}
+    <div class="foot">Generated ${esc(fmtDT(new Date().toISOString()))} · dataset: ${esc(FEED_META.origin)} · ${esc($('rClass').value)} · Verify before acting.</div></body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),350);
+}
+function reportExec(){
+  const items=reportScopeItems(), cls=esc($('rClass').value), prep=esc($('rFor').value);
+  const crit=items.filter(d=>d.severity==='critical'), iocs=items.filter(d=>d.ioc);
+  const wc=weeklyCounts(items,12), fc=forecast(wc.counts);
+  const tops=topTechniques(items,3), acts=activeActors(items).slice(0,3);
+  const recs=[];
+  const exploited=items.filter(d=>d.type==='vuln'&&d.tier==='verified'&&(d.severity==='critical'||d.severity==='high'));
+  if(exploited.length) recs.push(`Patch the ${exploited.length} verified critical or high vulnerabilities, internet-facing systems first.`);
+  if(iocs.length) recs.push(`Corroborate ${iocs.length} indicators against internal logs before blocking at scale.`);
+  if(items.some(d=>d.type==='leak')) recs.push('Verify leak-site claims with the affected organisation or CERT-In before responding.');
+  if(!recs.length) recs.push('No specific actions beyond routine monitoring for this window.');
+  const samp=items.some(d=>d.synthetic)?'<p class="sample">This brief includes SAMPLE records, which are synthetic and must not be used for decisions.</p>':'';
+  printable('ThreatIntFlux executive brief',`<div class="cls">${cls}</div><h1>Executive threat brief</h1>
+    <div class="meta">Prepared for ${prep} · window ${esc($('rWin').selectedOptions[0].text)} · scope ${esc($('rScope').selectedOptions[0].text)}</div>${samp}
+    <div class="kpis"><div class="kpi"><b>${items.length}</b>items in scope</div><div class="kpi"><b>${crit.length}</b>critical</div><div class="kpi"><b>${iocs.length}</b>indicators</div><div class="kpi"><b>${fc?Math.round(sum(fc.out.map(o=>o.yhat))):'—'}</b>projected next 4 weeks</div></div>
+    <h2>Key findings</h2><ul>
+      <li>${items.length} items in scope${crit.length?`, ${crit.length} rated critical`:''}.</li>
+      ${tops.length?`<li>Most observed technique: ${esc(techName(tops[0][0]))} (${esc(tops[0][0])}).</li>`:''}
+      ${acts.length?`<li>Most active attributed actor: ${esc(acts[0][0])} (claimed by sources; not confirmed).</li>`:''}
+      ${fc?`<li>Weekly trend ${fc.b>0.5?'rising':fc.b<-0.5?'falling':'flat'} (${fc.b>=0?'+':''}${fc.b.toFixed(1)} items/week). Projections are a trend extrapolation, not a forecast of events.</li>`:''}
+    </ul>
+    <h2>Recommended actions</h2><ol>${recs.map(r=>`<li>${esc(r)}</li>`).join('')}</ol>
+    <h2>Top items</h2><table><thead><tr><th>Severity</th><th>Title</th><th>Trust</th><th>Source</th><th>Date</th></tr></thead><tbody>
+      ${sorted(items).slice(0,12).map(d=>`<tr><td>${esc(d.severity)}</td><td>${esc(d.title)}${d.synthetic?' <span class="sample">SAMPLE</span>':''}</td><td>${esc(TIERS[d.tier])}</td><td>${esc(d.source)}</td><td>${fmtD(d.date)}</td></tr>`).join('')}
+    </tbody></table>`);
+}
+function reportTech(){
+  const items=reportScopeItems(), cls=esc($('rClass').value), prep=esc($('rFor').value);
+  const iocs=items.filter(d=>d.ioc).map(d=>({...d,_t:iocType(d.ioc)}));
+  const techs=topTechniques(items,15);
+  const ioaRows=IOAS.map(a=>({...a,hits:items.filter(d=>(d.mitre||[]).includes(a.tech)).length}));
+  const actors=activeActors(items).slice(0,8);
+  const samp=items.some(d=>d.synthetic)?'<p class="sample">Includes SAMPLE records (synthetic). Do not use for operational decisions.</p>':'';
+  printable('ThreatIntFlux technical report',`<div class="cls">${cls}</div><h1>Technical threat report</h1>
+    <div class="meta">Prepared for ${prep} · window ${esc($('rWin').selectedOptions[0].text)} · scope ${esc($('rScope').selectedOptions[0].text)} · ${items.length} items · dataset ${esc(FEED_META.origin)}${FEED_META.generated_at?' · generated '+esc(fmtDT(FEED_META.generated_at)):''}</div>${samp}
+    <h2>Techniques observed</h2><table><thead><tr><th>ATT&amp;CK</th><th>Name</th><th>Items</th></tr></thead><tbody>${techs.map(([t,c])=>`<tr><td>${esc(t)}</td><td>${esc(techName(t))}</td><td>${c}</td></tr>`).join('')||'<tr><td colspan="3">None</td></tr>'}</tbody></table>
+    <h2>Indicators of attack coverage</h2><table><thead><tr><th>ID</th><th>Behaviour</th><th>ATT&amp;CK</th><th>Items</th></tr></thead><tbody>${ioaRows.map(a=>`<tr><td>${esc(a.id)}</td><td>${esc(a.name)}</td><td>${esc(a.tech)}</td><td>${a.hits}</td></tr>`).join('')}</tbody></table>
+    <h2>Indicators (${iocs.length})</h2><table><thead><tr><th>Value</th><th>Type</th><th>Trust</th><th>Severity</th><th>Source</th></tr></thead><tbody>${iocs.slice(0,250).map(d=>`<tr><td class="mono">${esc(d.ioc)}</td><td>${esc(d._t)}</td><td>${esc(TIERS[d.tier])}</td><td>${esc(d.severity)}</td><td>${esc(d.source)}</td></tr>`).join('')||'<tr><td colspan="5">None</td></tr>'}</tbody></table>
+    ${iocs.length>250?`<p class="meta">Showing 250 of ${iocs.length}. Export the full set from the console.</p>`:''}
+    <h2>Tracked actors (as attributed by sources)</h2><ul>${actors.map(([a,c])=>`<li>${esc(a)}: ${c} items</li>`).join('')||'<li>None attributed</li>'}</ul>
+    <h2>Method</h2><p class="meta">Items are reported by their sources with a trust tier. Verified and trusted items are included by default. Unverified claims (for example leak-site listings) appear only in the all-tiers scope and are marked as claims. Projections use a least-squares trend on weekly counts and are not forecasts of specific events.</p>`);
 }
 
 /* ==================================================================
    BOOT
    ================================================================== */
+RENDER.reports=()=>{};
+RENDER.settings=renderSettings;
+buildNav();
 (function boot(){
-  if(!restore()){ DATA=buildSample(); FEED_META=null; save(); }
-  populateFilters();
-  renderOverview();
-  renderFeed();
-  renderMitre();
-  renderActors();
-  renderVulns();
-  renderIocs();
-  renderLeaks();
-  renderSources();
-  // try to pick up collector output automatically
+  if(!restore()){ DATA=buildSample(); ARTICLES=sampleArticles(); FEED_META={origin:'sample',generated_at:null,sources:[]}; save(); }
+  // A feed file beside the page is loaded automatically when present (works when served over http).
   fetch('threatintflux_feed.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(f=>{
-    if(f&&Array.isArray(f.items)&&f.items.length){DATA=f.items;FEED_META={generated_at:f.generated_at,sources:f.sources||[],mitre_techniques:f.mitre_techniques||null};save();afterLoad();toast('Live feed detected and loaded.')}
+    if(f&&Array.isArray(f.items)&&f.items.length) applyFeed(f,'file');
   }).catch(()=>{});
+  renderAll();
+  go('summary');
+  checkCompanion(false);
 })();
 </script>
 </body>

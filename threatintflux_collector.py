@@ -17,6 +17,7 @@ Usage:
 import argparse
 import csv
 import hashlib
+import html
 import io
 import json
 import os
@@ -411,6 +412,89 @@ def collect_certin(days):
     return out
 
 
+# ---------------------------------------------------------------- Attack news (RSS / Atom)
+# Feed URLs are not verified against the live sites. Override with NEWS_FEEDS, one entry per
+# ';' separated 'name|url|tier', e.g. NEWS_FEEDS="My feed|https://example.org/rss|trusted".
+NEWS_FEEDS = [
+    ("CISA cybersecurity advisories (RSS)", "https://www.cisa.gov/cybersecurity-advisories/all.xml", "verified"),
+    ("The Hacker News (RSS)", "https://feeds.feedburner.com/TheHackersNews", "trusted"),
+    ("BleepingComputer (RSS)", "https://www.bleepingcomputer.com/feed/", "trusted"),
+]
+ATOM_NS = "{http://www.w3.org/2005/Atom}"
+TAG_RE = re.compile(r"<[^>]+>")
+TIERS_OK = {"verified", "trusted", "unverified", "untrusted"}
+
+
+def load_news_feeds():
+    raw = os.environ.get("NEWS_FEEDS")
+    if not raw:
+        return list(NEWS_FEEDS)
+    feeds = []
+    for entry in raw.split(";"):
+        parts = [p.strip() for p in entry.split("|")]
+        if len(parts) == 3 and parts[0] and parts[1].startswith("https://") and parts[2] in TIERS_OK:
+            feeds.append((parts[0], parts[1], parts[2]))
+    return feeds
+
+
+def _clean(text):
+    text = TAG_RE.sub(" ", text or "")
+    return " ".join(html.unescape(text).split())
+
+
+def parse_news_xml(content, name, tier, days, now=None):
+    """Parse an RSS 2.0 or Atom document into article dicts, keeping the last `days` days."""
+    root = ET.fromstring(content)
+    cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=days)
+    articles = []
+    if root.tag.endswith("feed"):  # Atom
+        for e in root.iter(ATOM_NS + "entry"):
+            link = ""
+            for ln in e.findall(ATOM_NS + "link"):
+                if ln.get("rel") in (None, "alternate"):
+                    link = ln.get("href", "")
+                    break
+            title = _clean(e.findtext(ATOM_NS + "title"))
+            when = norm_ts(e.findtext(ATOM_NS + "published") or e.findtext(ATOM_NS + "updated"))
+            summary = e.findtext(ATOM_NS + "summary") or e.findtext(ATOM_NS + "content") or ""
+            guid = e.findtext(ATOM_NS + "id") or link
+            cats = [c.get("term", "") for c in e.findall(ATOM_NS + "category") if c.get("term")]
+            articles.append((guid, title, link, when, summary, cats))
+    else:  # RSS 2.0
+        for it in root.iter("item"):
+            link = (it.findtext("link") or "").strip()
+            guid = (it.findtext("guid") or link).strip()
+            title = _clean(it.findtext("title"))
+            when = None
+            pub = it.findtext("pubDate")
+            if pub:
+                try:
+                    dt = parsedate_to_datetime(pub)
+                    when = norm_ts(dt.isoformat())
+                except (TypeError, ValueError):
+                    when = None
+            cats = [c.text.strip() for c in it.findall("category") if c.text and c.text.strip()]
+            articles.append((guid, title, link, when, it.findtext("description") or "", cats))
+    out = []
+    for guid, title, link, when, summary, cats in articles:
+        if not title or not link.startswith(("https://", "http://")) or not when:
+            continue
+        if datetime.fromisoformat(when) < cutoff:
+            continue
+        out.append({
+            "id": "NEWS-" + hashlib.sha1((guid or link).encode("utf-8")).hexdigest()[:16],
+            "title": title, "url": link, "source": name, "tier": tier, "published": when,
+            "summary": _clean(summary)[:400], "tags": cats[:8],
+        })
+    return out
+
+
+def collect_news_feed(name, url, tier, days):
+    r = requests.get(url, timeout=TIMEOUT, headers={"User-Agent": UA})
+    r.raise_for_status()
+    return parse_news_xml(r.content, name, tier, days)
+
+
 # ---------------------------------------------------------------- Runner
 SOURCES = [
     ("CISA Known Exploited Vulnerabilities", collect_cisa_kev),
@@ -426,52 +510,64 @@ SOURCES = [
 ]
 
 
+def build_feed(days=7, mitre=False, news=True, sources=None, news_feeds=None):
+    """Run every collector and return the feed dict. A failing source is recorded, never filled."""
+    items, status = [], []
+    for name, fn in (SOURCES if sources is None else sources):
+        try:
+            got = fn(days)
+            items.extend(got)
+            status.append({"name": name, "status": "ok", "count": len(got), "error": None})
+        except Exception as e:  # record, never fabricate
+            status.append({"name": name, "status": "error", "count": 0, "error": str(e)[:300]})
+
+    articles = []
+    if news:
+        for name, url, tier in (load_news_feeds() if news_feeds is None else news_feeds):
+            try:
+                got = collect_news_feed(name, url, tier, days)
+                articles.extend(got)
+                status.append({"name": name, "status": "ok", "count": len(got), "error": None})
+            except Exception as e:
+                status.append({"name": name, "status": "error", "count": 0, "error": str(e)[:300]})
+
+    feed = {
+        "generated_at": now_iso(),
+        "mode": "live",
+        "window_days": days,
+        "sources": status,
+    }
+    if mitre:
+        try:
+            feed["mitre_techniques"] = collect_mitre_stix()
+            status.append({"name": MITRE_SOURCE, "status": "ok", "count": 0, "error": None})
+        except Exception as e:
+            status.append({"name": MITRE_SOURCE, "status": "error", "count": 0, "error": str(e)[:300]})
+
+    dedup = {it["id"]: it for it in items}          # de-duplicate by id, keep latest
+    seen_articles = {a["id"]: a for a in articles}
+    feed["items"] = list(dedup.values())
+    feed["articles"] = sorted(seen_articles.values(), key=lambda a: a["published"], reverse=True)
+    return feed
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="threatintflux_feed.json")
     ap.add_argument("--days", type=int, default=7)
     ap.add_argument("--mitre", action="store_true",
                     help="also export the full ATT&CK technique list for the console matrix")
+    ap.add_argument("--no-news", action="store_true", help="skip the attack-news RSS feeds")
     args = ap.parse_args()
-
-    items, status = [], []
-    for name, fn in SOURCES:
-        try:
-            got = fn(args.days)
-            items.extend(got)
-            status.append({"name": name, "status": "ok", "count": len(got), "error": None})
-            print(f"[ok]    {name}: {len(got)} items")
-        except Exception as e:  # record, never fabricate
-            status.append({"name": name, "status": "error", "count": 0, "error": str(e)[:300]})
-            print(f"[error] {name}: {e}", file=sys.stderr)
-
-    mitre_techniques = None
-    if args.mitre:
-        try:
-            mitre_techniques = collect_mitre_stix()
-            status.append({"name": MITRE_SOURCE, "status": "ok", "count": 0, "error": None})
-            print(f"[ok]    {MITRE_SOURCE}: {len(mitre_techniques)} techniques")
-        except Exception as e:
-            status.append({"name": MITRE_SOURCE, "status": "error", "count": 0, "error": str(e)[:300]})
-            print(f"[error] {MITRE_SOURCE}: {e}", file=sys.stderr)
-
-    # de-duplicate by id, keep latest
-    dedup = {}
-    for it in items:
-        dedup[it["id"]] = it
-    feed = {
-        "generated_at": now_iso(),
-        "mode": "live",
-        "window_days": args.days,
-        "sources": status,
-        "items": list(dedup.values()),
-    }
-    if mitre_techniques is not None:
-        feed["mitre_techniques"] = mitre_techniques
+    feed = build_feed(days=args.days, mitre=args.mitre, news=not args.no_news)
+    for s in feed["sources"]:
+        label = "ok   " if s["status"] == "ok" else "error"
+        print(f"[{label}] {s['name']}: {s['count'] if s['status'] == 'ok' else s['error']}", file=sys.stdout)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(feed, f, indent=2)
-    ok = sum(1 for s in status if s["status"] == "ok")
-    print(f"\nWrote {len(feed['items'])} items from {ok}/{len(status)} sources to {args.out}")
+    ok = sum(1 for s in feed["sources"] if s["status"] == "ok")
+    print(f"\nWrote {len(feed['items'])} items and {len(feed['articles'])} articles "
+          f"from {ok}/{len(feed['sources'])} sources to {args.out}")
 
 
 if __name__ == "__main__":

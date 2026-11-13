@@ -53,7 +53,7 @@ def test_every_collector_source_is_listed_in_console():
     html = open(os.path.join(ROOT, "index.html"), encoding="utf-8").read()
     block = html[html.index("const SOURCES = ["):html.index("];", html.index("const SOURCES = ["))]
     console_names = set(re.findall(r"name:'([^']+)'", block))
-    collector_names = {name for name, _ in tc.SOURCES} | {tc.MITRE_SOURCE}
+    collector_names = {name for name, _ in tc.SOURCES} | {tc.MITRE_SOURCE} | {n for n, _, _ in tc.NEWS_FEEDS}
     missing = collector_names - console_names
     assert not missing, f"collector sources missing from console SOURCES: {missing}"
 
@@ -88,3 +88,14 @@ def test_browser_collector_source_names_match_console():
     assert page_names, "no sources found in collector.html"
     assert page_names <= console_names, f"not in console: {page_names - console_names}"
 
+
+
+def test_console_loads_nothing_from_the_network():
+    """Offline-first promise: no external scripts, stylesheets, fonts or images, and only same-origin fetches."""
+    html = open(os.path.join(ROOT, "index.html"), encoding="utf-8").read()
+    assert not re.search(r"<script[^>]*\bsrc=", html), "external script found"
+    assert not re.search(r"<link[^>]*href=", html), "external stylesheet or font found"
+    assert not re.search(r"(src|href)=[\"']https?://", html), "external resource reference found"
+    fetches = re.findall(r"fetch\(\s*['\"]([^'\"]+)['\"]", html)
+    assert set(fetches) <= {"/api/status", "/api/sync", "threatintflux_feed.json"}, fetches
+    assert html.count("fetch(") <= 4, "unexpected fetch calls"

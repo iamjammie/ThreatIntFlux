@@ -1,6 +1,6 @@
 # ThreatIntFlux
 
-**The Edge Before Engagement.** An offline-first threat-intelligence console with a collector that pulls from public feeds and a validator that enforces the data schema.
+**The Edge Before Engagement.** An offline-first threat-intelligence console. It works fully from a saved dataset, and when a local companion is running it syncs live intel from public sources, validates it, and turns it into executive and technical reporting.
 
 <!-- suite-nav:start -->
 > **Part of the [iamjammie Hunt suite](https://iamjammie.github.io/FluxHunt/suite.html)** — open-source, offline-first security tooling and knowledge.
@@ -10,102 +10,134 @@
 > [Suite hub](https://iamjammie.github.io/FluxHunt/suite.html) · [All projects](https://github.com/iamjammie)
 <!-- suite-nav:end -->
 
-- **Console:** `index.html`, a single file with no build step. Dark analyst UI with an intel feed, advanced search with field filters, a MITRE ATT&CK matrix, actor and vulnerability views, IOCs, leak claims, source verification, and an executive briefing you print to PDF.
-- **Collector:** `threatintflux_collector.py` writes `threatintflux_feed.json` from public sources.
-- **Validator:** `threatintflux_validate.py` checks a feed against the schema. The console runs the same rules on import.
+## What you get
 
-## What is live and what is sample
-
-| Thing | Status |
+| Module | What it shows |
 |---|---|
-| Console UI and all views | Working |
-| Built-in dataset | **SAMPLE.** Synthetic records tagged `SAMPLE` for exercising the interface. They are not threat intelligence. |
-| Live feeds | Only what `threatintflux_collector.py` actually retrieves. A source that fails is reported as an error, and no items are invented to fill the gap. |
-| Dark web and leak sites | **Not implemented as crawlers.** The leak view displays claims you import. Treat every listing as unverified. |
+| **Executive summary** | Key figures, a threat index (0–100), findings written from the data, recommended actions, the highest-priority items, and tier and severity charts |
+| **Threat feed** | Every item with trust tier and source, filterable by field (`severity:critical`, `-term` to exclude) |
+| **Attack news** | Recent articles from configured RSS/Atom feeds. Reported, not verified |
+| **IOCs** | Indicators classified (IPv4, IPv6, domain, URL, hash, CVE). Export to CSV or a STIX 2.1 indicator bundle |
+| **IOAs** | 18 indicators of attack: behaviours to hunt for, mapped to MITRE ATT&CK, with hits and coverage from the current intel |
+| **ATT&CK coverage** | Matrix of tactics and techniques, with live counts. Loads the full Enterprise list when the collector exports it |
+| **APT tracker** | Actors as attributed by sources: weekly activity, momentum, sectors, regions, techniques, and a profile drawer |
+| **Foresight** | Weekly volume with a 4-week projection and band, technique and actor momentum, and scenario sensitivity |
+| **Reports** | Executive brief and technical report, both print to PDF. Scope and window options |
+| **Sources** | Trust tier for every source, last-sync health, and each failed source's error |
+| **Settings** | Connectivity, live sync, feed import and export, sample and clear |
 
-The sample dataset uses placeholder actors (`ACTOR-A07`), RFC 5737 documentation IP ranges, and `.example` domains. It names no real organisation as a victim.
+## Offline-first, and what happens online
 
-## Quick start
+The console loads nothing from the network. It has no external scripts, fonts or images, and its only requests go to the local companion. The charts are drawn in SVG.
+
+- **Offline (default):** open `index.html`. It loads the saved dataset, or the labelled sample on first run. Every module works.
+- **Online with the companion:** run `python3 serve.py`, then open `http://127.0.0.1:8787/`. **Sync live intel** asks the companion to run the collector, and the result replaces the dataset. If a sync returns nothing, for example because every source is down, your current dataset is kept and the reason is shown.
+
+Why a companion? Most public intel feeds block requests from a web page (CORS). The companion runs on your machine, so the browser never contacts the sources, and API keys stay in environment variables on that machine.
 
 ```bash
-# Console: open index.html in a browser, or serve the folder
-python3 -m http.server 8000        # then open http://localhost:8000/
-
-# Collector: pulls live data into threatintflux_feed.json
 pip install requests
-export THREATFOX_KEY=...           # optional, free key from abuse.ch
-export OTX_KEY=...                 # optional, free key from AlienVault OTX
-export NVD_KEY=...                 # optional, raises NVD rate limits
-export GITHUB_TOKEN=...            # optional, raises the GitHub advisories rate limit
-python3 threatintflux_collector.py --days 7
-python3 threatintflux_collector.py --days 7 --mitre   # also exports the full ATT&CK matrix
-
-# Validate the result
-python3 threatintflux_validate.py threatintflux_feed.json
+export THREATFOX_KEY=... OTX_KEY=... MALWAREBAZAAR_KEY=... GITHUB_TOKEN=... NVD_KEY=...
+export CERTIN_FEED_URL=...        # see the CERT-In note below
+python3 serve.py                  # open http://127.0.0.1:8787/
 ```
 
-Put `threatintflux_feed.json` beside `index.html` and the console loads it on start. You can also import it from Settings.
+Keys are optional; a source without its key shows as an error and is never filled with data. `/api/status` reports which keys are set, never their values.
+
+### Companion security
+
+- Binds to `127.0.0.1` only.
+- Serves four fixed files (`index.html`, `collector.html`, `threatintflux_feed.json`, and `/`). Nothing else, so `.git` and source files are not reachable.
+- Rejects requests whose `Host` header is not localhost (DNS-rebinding defence).
+- Sync requires the header `X-TIF: 1`, which a cross-site page cannot send without a preflight the server never grants.
+- Responses carry a Content-Security-Policy that allows only same-origin content.
 
 ## Sources and trust tiers
 
-Every item carries one of four trust tiers. The tier decides how an item may be used.
+Every item and article carries a trust tier. The tier decides how it may be used.
 
 | Tier | Meaning | Use |
 |---|---|---|
 | **Verified** | Official government, CERT or standards body | Actionable |
 | **Trusted** | Established vendor or community with editorial review | Corroborate before blocking at scale |
-| **Unverified** | Claims without independent confirmation, such as forum posts or leak-site listings | Monitor only |
+| **Unverified** | Claims without independent confirmation, such as leak-site listings | Monitor only |
 | **Untrusted** | Failed validation or unknown provenance | Excluded from reports |
 
 Collected by the collector:
 
 - CISA Known Exploited Vulnerabilities (verified)
 - NVD CVE API 2.0 (verified)
-- abuse.ch URLhaus (trusted)
-- abuse.ch ThreatFox (trusted, needs a free key)
-- AlienVault OTX subscribed pulses (trusted, needs a free key)
-- abuse.ch Feodo Tracker botnet C2 blocklist (trusted, no key)
 - GitHub Security Advisories (verified, optional token)
+- CERT-In advisories (verified, RSS, see below)
+- abuse.ch URLhaus, ThreatFox, MalwareBazaar, Feodo Tracker (trusted)
+- AlienVault OTX subscribed pulses (trusted)
 - Ransomware leak-site aggregator, ransomware.live (unverified: these are the groups' own claims)
-- abuse.ch MalwareBazaar recent samples (trusted, needs a free Auth-Key via `MALWAREBAZAAR_KEY`; the endpoint returns the latest 100 additions)
-- CERT-In advisories (verified, RSS 2.0; set `CERTIN_FEED_URL` to the feed you verify, because the public feed URL is not yet confirmed)
-- MITRE ATT&CK Enterprise technique list for the matrix (verified reference, `--mitre` only; produces no items)
+- Attack news: CISA advisories, The Hacker News, BleepingComputer (RSS, see below)
+- MITRE ATT&CK Enterprise technique list, with `--mitre` (verified reference; produces no items)
 
-Listed as reference only and not ingested: the curated OSINT directories on start.me that the console's Source Verification page links to. They are link collections, not feeds.
+Listed as reference only, not ingested: the curated OSINT directories on start.me.
 
-CERT-In is a verified source. The collector reads an RSS feed you configure with `CERTIN_FEED_URL`. Until that is set, the source reports an error and produces no items. The public feed URL has not been confirmed.
+### Things to confirm before relying on them
 
-## Browser collector (no Python)
+- **CERT-In.** The public advisory feed URL has not been confirmed. Until you set `CERTIN_FEED_URL` to a feed you have checked, that source reports an error and produces no items.
+- **News feed URLs.** The three RSS URLs are not verified against the live sites. Override them with `NEWS_FEEDS`, one `name|https-url|tier` entry per `;` separated item.
+- **MalwareBazaar** returns the latest 100 additions, so a busy period has more samples than the collector sees.
+- **Live behaviour.** The collectors were tested against fixtures and mocked responses. Field names come from each provider's documented format. Run a sync once with network access and check the Sources view.
 
-`collector.html` runs the same sources in the browser: open it from the same folder as `index.html` (served over http or https). It collects, validates, and then either downloads `threatintflux_feed.json` or sends the dataset straight to the console in that browser.
+## Command-line collector
 
-- Browsers block many public feeds (CORS). A blocked source shows its error. Enter a CORS proxy you control to reach those sources, and never send API keys through a proxy you do not control.
-- Keys are held in the page's memory only. They are never saved.
-- The MITRE full matrix export is Python-only (`--mitre`), because the STIX bundle is large.
+```bash
+python3 threatintflux_collector.py --days 7                # feed items and articles
+python3 threatintflux_collector.py --days 7 --mitre        # also the full ATT&CK matrix
+python3 threatintflux_collector.py --days 7 --no-news      # skip the news feeds
+python3 threatintflux_validate.py threatintflux_feed.json  # check any feed against the schema
+```
+
+The collector writes `threatintflux_feed.json`. Place it beside `index.html` and the console loads it on start.
+
+## Foresight: method and limits
+
+Projections are a least-squares trend on the last 8 weekly counts. The band is ±1.96 × the residual standard error. The module shows direction and rough scale for capacity planning. It does **not** predict specific attacks, and it assumes the recent trend continues. Source reporting changes can move the trend without any change in real activity. With fewer than three weeks of dated items it says so instead of projecting.
+
+## IOAs
+
+The 18 IOAs describe behaviours to hunt for, with the telemetry each needs and the ATT&CK technique it maps to. They are descriptions, not detection code. Adapt them to your own logging and rule language.
 
 ## Validation
 
-Validation runs in three places:
+Validation runs in three places, with the same rules:
 
-1. **Collector output** is checked by `threatintflux_validate.py` (schema, enums, ISO-8601 timestamps with a timezone, no future dates, IOC shape, MITRE id format, source status consistent with items, no synthetic items in a live feed).
-2. **Browser import** applies the same rules in `index.html` (`validateItems`) and rejects a bad file with the reasons.
-3. **CI** (`.github/workflows/validate.yml`) runs the offline test suite in `tests/` and validates the committed fixture feed. The tests cover the parsers with fixture responses, so no network is needed.
+1. **Collector output** is checked by `threatintflux_validate.py`: schema, enums, ISO-8601 timestamps with a timezone, no future dates, IOC shape, MITRE id format, source status consistent with items and articles, no synthetic items in a live feed, and the optional technique and article blocks.
+2. **Browser import and sync** apply the same rules in `index.html` (`validateItems`, `validateArticles`) and reject a bad feed with the reasons.
+3. **CI** (`.github/workflows/validate.yml`) runs the offline test suite and validates the committed fixture feed.
 
 ```bash
 python3 -m pytest tests/ -q
 ```
 
+The tests run offline. They cover the parsers with fixtures, the companion over real local HTTP with the collector stubbed, the validator rules, and the console: that its script parses, that it loads nothing from the network, and that every collector source name appears in the console.
+
 ## Limitations
 
-- The collector has been tested against fixture responses. Field names come from each provider's documented format, but a live run may still surface format drift. Run the validator after each collection.
-- Without `--mitre`, the MITRE matrix uses a built-in subset of techniques. With `--mitre`, the collector exports the full Enterprise list and the matrix uses it.
-- The Sources view shows a health line and each source's error from the last run. Sources that fail are never filled with items.
-- Charts use Chart.js from a CDN. Without it, the rest of the console still works and charts show a note.
+- Live sources have not been checked against the live services from the development environment. Check each source once with network access.
+- The browser collector page (`collector.html`) reaches sources only if they allow browser requests, or through a CORS proxy you control. The companion is the reliable route.
+- The sample dataset is synthetic. Its actors, families, articles and sources are placeholders and are labelled SAMPLE everywhere they appear, including in exports and reports.
 - Severity is the source's rating, not an assessment of impact on your organisation.
+- Actor names are attributions made by sources. They are claims, and reports say so.
 
 ## Handling leak and dark web material
 
-Leak listings and forum claims can contain personal data and stolen material. Do not download, republish, or act on a listing as if it were confirmed. Validate with the affected organisation or CERT-In first, and follow your legal and data-protection obligations. The console does not fetch leak content.
+Leak listings and forum claims can contain personal data and stolen material. Do not download, republish, or act on a listing as if it were confirmed. Validate with the affected organisation or CERT-In first, and follow your legal and data-protection obligations. The console and the collectors do not fetch leak content or crawl the dark web; leak-site data is limited to listing metadata from an aggregator, and every such item is unverified.
+
+## Files
+
+- `index.html`: the console (offline, single file)
+- `serve.py`: local companion for live sync
+- `threatintflux_collector.py`: collectors and feed builder
+- `threatintflux_validate.py`: schema validator
+- `collector.html`: browser-only collector page (optional)
+- `tests/`: offline test suite
+- `tests/fixtures/feed_sample.json`: synthetic fixture feed
 
 ## Licence
 

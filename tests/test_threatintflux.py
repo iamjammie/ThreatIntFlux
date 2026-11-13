@@ -18,9 +18,10 @@ import threatintflux_validate as tv  # noqa: E402
 
 
 class FakeResp:
-    def __init__(self, payload=None, text=""):
+    def __init__(self, payload=None, text="", content=None):
         self._payload = payload
         self.text = text
+        self.content = content if content is not None else text.encode("utf-8")
         self.status_code = 200
 
     def json(self):
@@ -389,16 +390,100 @@ def test_runner_writes_mitre_techniques_only_with_flag(tmp_path, monkeypatch):
     monkeypatch.setattr(tc, "collect_mitre_stix", lambda: techs)
 
     plain = tmp_path / "plain.json"
-    with mock.patch.object(sys, "argv", ["x", "--out", str(plain)]):
+    with mock.patch.object(sys, "argv", ["x", "--out", str(plain), "--no-news"]):
         tc.main()
     assert "mitre_techniques" not in json.loads(plain.read_text(encoding="utf-8"))
 
     with_mitre = tmp_path / "mitre.json"
-    with mock.patch.object(sys, "argv", ["x", "--out", str(with_mitre), "--mitre"]):
+    with mock.patch.object(sys, "argv", ["x", "--out", str(with_mitre), "--mitre", "--no-news"]):
         tc.main()
     feed = json.loads(with_mitre.read_text(encoding="utf-8"))
     assert feed["mitre_techniques"] == techs
     assert any(s["name"] == tc.MITRE_SOURCE and s["status"] == "ok" for s in feed["sources"])
     errors, _ = tv.validate(feed)
     assert errors == []
+
+
+# ------------------------------------------------------------------ attack news
+RSS_NEWS = """<?xml version="1.0"?><rss version="2.0"><channel>
+<item><title>Edge VPN flaw &amp; exploitation</title><link>https://news.example/a1</link><guid>g1</guid>
+<pubDate>Tue, 11 Nov 2026 06:00:00 +0000</pubDate>
+<description>&lt;p&gt;Attackers &lt;b&gt;exploit&lt;/b&gt; the flaw.&lt;/p&gt;</description>
+<category>Vulnerabilities</category></item>
+<item><title>Ancient story</title><link>https://news.example/a0</link><guid>g0</guid>
+<pubDate>Mon, 01 Jan 2018 00:00:00 +0000</pubDate></item>
+<item><title>No link</title><link>ftp://news.example/x</link><guid>g2</guid>
+<pubDate>Tue, 11 Nov 2026 06:00:00 +0000</pubDate></item>
+</channel></rss>""".encode("utf-8")
+
+ATOM_NEWS = b"""<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>x</title>
+<entry><title>Atom story</title><id>urn:a1</id><link rel="alternate" href="https://atom.example/s1"/>
+<published>2026-11-11T06:00:00Z</published><summary>Short &amp; plain.</summary>
+<category term="Malware"/></entry></feed>"""
+
+
+def test_news_rss_parses_strips_html_and_filters():
+    now = tc.datetime(2026, 11, 12, tzinfo=tc.timezone.utc)
+    out = tc.parse_news_xml(RSS_NEWS, "Test feed", "trusted", days=7, now=now)
+    assert [a["title"] for a in out] == ["Edge VPN flaw & exploitation"]
+    a = out[0]
+    assert a["url"] == "https://news.example/a1" and a["source"] == "Test feed" and a["tier"] == "trusted"
+    assert a["summary"] == "Attackers exploit the flaw." and a["tags"] == ["Vulnerabilities"]
+    assert a["published"] == "2026-11-11T06:00:00+00:00"
+    assert a["id"].startswith("NEWS-")
+
+
+def test_news_atom_parses_alternate_link():
+    now = tc.datetime(2026, 11, 12, tzinfo=tc.timezone.utc)
+    out = tc.parse_news_xml(ATOM_NEWS, "Atom feed", "verified", days=7, now=now)
+    assert len(out) == 1
+    assert out[0]["url"] == "https://atom.example/s1" and out[0]["summary"] == "Short & plain."
+    assert out[0]["tags"] == ["Malware"]
+
+
+def test_news_feeds_can_be_overridden_by_environment(monkeypatch):
+    monkeypatch.delenv("NEWS_FEEDS", raising=False)
+    assert tc.load_news_feeds() == tc.NEWS_FEEDS
+    monkeypatch.setenv("NEWS_FEEDS", "Mine|https://x.example/rss|trusted;bad|http://no.example|trusted;Also|https://y.example|nope")
+    assert tc.load_news_feeds() == [("Mine", "https://x.example/rss", "trusted")]
+
+
+def test_build_feed_collects_items_and_articles_and_validates(monkeypatch):
+    now_recent = tc.datetime.now(tc.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    rss = (f'<rss><channel><item><title>Fresh</title><link>https://news.example/f</link>'
+           f'<guid>f</guid><pubDate>{tc.datetime.now(tc.timezone.utc).strftime("%a, %d %b %Y %H:%M:%S +0000")}</pubDate>'
+           f'</item></channel></rss>').encode()
+    with mock.patch.object(tc.requests, "get", return_value=FakeResp(content=rss)):
+        feed = tc.build_feed(days=7, sources=[("Stub", lambda d: [])],
+                             news_feeds=[("Stub news", "https://news.example/rss", "trusted")])
+    assert feed["items"] == []
+    assert [a["title"] for a in feed["articles"]] == ["Fresh"]
+    assert {s["name"]: s["status"] for s in feed["sources"]} == {"Stub": "ok", "Stub news": "ok"}
+    errors, _ = tv.validate(feed)
+    assert errors == [], errors
+
+
+def test_build_feed_records_news_failure_without_inventing_articles(monkeypatch):
+    def boom(*a, **k):
+        raise tc.requests.ConnectionError("offline")
+    monkeypatch.setattr(tc.requests, "get", boom)
+    feed = tc.build_feed(days=7, sources=[], news_feeds=[("Down", "https://down.example/rss", "trusted")])
+    assert feed["articles"] == []
+    assert feed["sources"] == [{"name": "Down", "status": "error", "count": 0, "error": "offline"}]
+
+
+def test_validator_checks_articles():
+    good = {"id": "NEWS-1", "title": "t", "url": "https://x.example/a", "source": "S",
+            "published": "2026-11-10T00:00:00+00:00", "tier": "trusted"}
+    errors, _ = tv.validate(_feed([], articles=[good]))
+    assert errors == []
+    errors, _ = tv.validate(_feed([], articles=[dict(good, url="javascript:alert(1)")]))
+    assert any("url must be http(s)" in e for e in errors)
+    errors, _ = tv.validate(_feed([], articles=[dict(good, published="2026-11-10T00:00:00")]))
+    assert any("published is not ISO-8601" in e for e in errors)
+    errors, _ = tv.validate(_feed([], articles=[{k: v for k, v in good.items() if k != "source"}]))
+    assert any("missing 'source'" in e for e in errors)
+    errors, _ = tv.validate(_feed([], articles="nope"))
+    assert any("'articles' must be a list" in e for e in errors)
 

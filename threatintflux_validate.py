@@ -12,6 +12,7 @@ Checks:
   * source status is consistent with the items it produced
   * a feed that claims to be live contains no synthetic items
   * optional 'mitre_techniques' (full ATT&CK list for the matrix): ids, names and tactics well formed
+  * optional 'articles' (attack news): id, title, http(s) url, source, timezone-aware published date, tier
 
 Exit code 0 when valid, 1 when any error is found.
 
@@ -130,6 +131,36 @@ def validate(feed):
             synthetic_count += 1
         if it.get("source"):
             counts_by_source[it["source"]] = counts_by_source.get(it["source"], 0) + 1
+
+    articles = feed.get("articles") or []
+    if not isinstance(articles, list):
+        errors.append("'articles' must be a list when present")
+        articles = []
+    seen_articles = set()
+    for idx, a in enumerate(articles):
+        where = f"articles[{idx}]"
+        if not isinstance(a, dict):
+            errors.append(f"{where}: must be an object")
+            continue
+        for k in ("id", "title", "url", "source", "published", "tier"):
+            if not a.get(k):
+                errors.append(f"{where}: missing '{k}'")
+        if a.get("id"):
+            if a["id"] in seen_articles:
+                errors.append(f"{where}: duplicate id")
+            seen_articles.add(a["id"])
+        if a.get("url") and not URL_RE.match(str(a["url"])):
+            errors.append(f"{where}: url must be http(s)")
+        if a.get("tier") and a["tier"] not in TIERS:
+            errors.append(f"{where}: unknown tier '{a['tier']}'")
+        if a.get("published"):
+            dt = parse_iso(a["published"])
+            if dt is None:
+                errors.append(f"{where}: published is not ISO-8601 with a timezone")
+            elif dt > now:
+                errors.append(f"{where}: published is in the future")
+        if a.get("source"):
+            counts_by_source[a["source"]] = counts_by_source.get(a["source"], 0) + 1
 
     # Source status must agree with the items it produced. Item 'source' values are the
     # display names from the console's source list, so the two can be joined by name.
